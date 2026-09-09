@@ -24,12 +24,15 @@ class FirestoreChatRemoteDataSource implements ChatRemoteDataSource {
 
   @override
   Stream<List<ChatThread>> watchThreads({required String currentUserId}) {
+    // arrayContains + orderBy needs a composite index. Sort in-app so chat
+    // works before/without that index (create it in Console when ready).
     return _chats
         .where('participantIds', arrayContains: currentUserId)
-        .orderBy('lastMessageAt', descending: true)
         .snapshots()
         .map((QuerySnapshot<Map<String, dynamic>> snap) {
-          return snap.docs.map((QueryDocumentSnapshot<Map<String, dynamic>> doc) {
+          final List<ChatThread> threads = snap.docs.map((
+            QueryDocumentSnapshot<Map<String, dynamic>> doc,
+          ) {
             final Map<String, dynamic> data = doc.data();
             final String typeRaw = (data['type'] as String?) ?? 'direct';
             final List<dynamic> pinnedBy =
@@ -46,7 +49,8 @@ class FirestoreChatRemoteDataSource implements ChatRemoteDataSource {
                   : ChatThreadType.direct,
               title: (data['title'] as String?) ?? 'Chat',
               lastMessage: (data['lastMessage'] as String?) ?? '',
-              lastMessageAt: ts?.toDate() ?? DateTime.fromMillisecondsSinceEpoch(0),
+              lastMessageAt:
+                  ts?.toDate() ?? DateTime.fromMillisecondsSinceEpoch(0),
               unreadCount: (unread[currentUserId] as num?)?.toInt() ?? 0,
               isPinned: pinnedBy.contains(currentUserId),
               avatarUrl: (data['avatarUrl'] as String?) ?? '',
@@ -54,6 +58,12 @@ class FirestoreChatRemoteDataSource implements ChatRemoteDataSource {
               peerUserId: (data['peerUserId'] as String?) ?? '',
             );
           }).toList();
+
+          threads.sort(
+            (ChatThread a, ChatThread b) =>
+                b.lastMessageAt.compareTo(a.lastMessageAt),
+          );
+          return threads;
         });
   }
 
