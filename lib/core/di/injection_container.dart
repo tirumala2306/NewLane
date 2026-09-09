@@ -35,9 +35,11 @@ import 'package:newlane/features/chats/repositories/chat_repository_impl.dart';
 import 'package:newlane/features/create_post/bloc/tag_office/tag_office_bloc.dart';
 import 'package:newlane/features/create_post/bloc/tag_office/tag_office_event.dart';
 import 'package:newlane/features/create_post/data/datasources/offices_remote_data_source.dart';
+import 'package:newlane/features/create_post/domain/usecases/get_office_by_id.dart';
 import 'package:newlane/features/create_post/domain/usecases/get_offices.dart';
 import 'package:newlane/features/create_post/repositories/offices_repository.dart';
 import 'package:newlane/features/create_post/repositories/offices_repository_impl.dart';
+import 'package:newlane/features/create_post/domain/entities/office.dart';
 import 'package:newlane/features/directory/bloc/agent_detail/agent_detail_bloc.dart';
 import 'package:newlane/features/directory/bloc/directory_bloc.dart';
 import 'package:newlane/features/directory/bloc/directory_event.dart';
@@ -133,6 +135,7 @@ class InjectionContainer {
   late final OfficesRemoteDataSource _officesRemoteDataSource;
   late final OfficesRepository _officesRepository;
   late final GetOffices _getOffices;
+  late final GetOfficeById _getOfficeById;
   late final ChatRemoteDataSource _chatRemoteDataSource;
   late final ChatRepository _chatRepository;
   late final ChatApiRemoteDataSource chatApiRemoteDataSource;
@@ -209,6 +212,7 @@ class InjectionContainer {
       remote: _officesRemoteDataSource,
     );
     _getOffices = GetOffices(_officesRepository);
+    _getOfficeById = GetOfficeById(_officesRepository);
 
     // Chat: Firestore when Firebase is ready, otherwise local mock streams.
     _chatRemoteDataSource = FirebaseBootstrap.isReady
@@ -362,6 +366,14 @@ class InjectionContainer {
     ReplySupportTicketParams params,
   ) {
     return _replySupportTicket(params);
+  }
+
+  Future<Result<Office>> fetchOfficeById(int officeId) {
+    return _getOfficeById(GetOfficeByIdParams(officeId));
+  }
+
+  Future<Result<List<Office>>> fetchOffices({String search = ''}) {
+    return _getOffices(GetOfficesParams(search: search));
   }
 
   TagOfficeBloc createTagOfficeBloc({int? selectedOfficeId}) {

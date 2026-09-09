@@ -7,6 +7,8 @@ class OfficeModel {
     this.city = '',
     this.state = '',
     this.address = '',
+    this.phone = '',
+    this.email = '',
   });
 
   factory OfficeModel.fromJson(Map<String, dynamic> json) {
@@ -17,9 +19,16 @@ class OfficeModel {
           .trim(),
       city: (json['city'] ?? '').toString().trim(),
       state: (json['state'] ?? json['region'] ?? '').toString().trim(),
-      address: (json['address'] ?? json['fullAddress'] ?? '')
+      address: (json['address'] ??
+              json['fullAddress'] ??
+              json['streetAddress'] ??
+              '')
           .toString()
           .trim(),
+      phone: (json['phone'] ?? json['phoneNumber'] ?? json['contactPhone'] ?? '')
+          .toString()
+          .trim(),
+      email: (json['email'] ?? json['contactEmail'] ?? '').toString().trim(),
     );
   }
 
@@ -28,6 +37,8 @@ class OfficeModel {
   final String city;
   final String state;
   final String address;
+  final String phone;
+  final String email;
 
   Office toEntity() {
     return Office(
@@ -36,6 +47,8 @@ class OfficeModel {
       city: city,
       state: state,
       address: address,
+      phone: phone,
+      email: email,
     );
   }
 

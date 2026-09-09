@@ -5,6 +5,8 @@ class Office {
     this.city = '',
     this.state = '',
     this.address = '',
+    this.phone = '',
+    this.email = '',
   });
 
   final int id;
@@ -12,6 +14,8 @@ class Office {
   final String city;
   final String state;
   final String address;
+  final String phone;
+  final String email;
 
   String get locationLabel {
     final List<String> parts = <String>[
@@ -21,5 +25,10 @@ class Office {
     if (parts.isNotEmpty) return parts.join(', ');
     if (address.trim().isNotEmpty) return address.trim();
     return '';
+  }
+
+  String get displayAddress {
+    if (address.trim().isNotEmpty) return address.trim();
+    return locationLabel;
   }
 }

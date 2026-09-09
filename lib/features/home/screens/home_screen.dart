@@ -167,7 +167,7 @@ class _HomeScreenState extends State<HomeScreen> {
             SizedBox(height: gap),
             OfficeCard(
               officeName: officeName,
-              onViewOffice: () => context.push(AppRoutes.officeDirectory),
+              onViewOffice: () => context.push(AppRoutes.moreOffice),
             ),
             SizedBox(height: gap),
             _announcementsCard(),
