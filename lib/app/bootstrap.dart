@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:newlane/app/app.dart';
 import 'package:newlane/core/config/app_environment.dart';
@@ -20,8 +20,18 @@ class AppBootstrap {
 
     Bloc.observer = AppBlocObserver();
 
-    await AppEnvironment.initialize();
-    AppEnvironment.validate();
+    try {
+      await AppEnvironment.initialize();
+      AppEnvironment.validate();
+    } catch (error, stack) {
+      // Avoid blank white screen if env/dart-defines are missing.
+      AppLog.section('ENV INIT FAILED', <String, Object?>{
+        'ERROR': error,
+        'STACK': stack,
+      });
+      runApp(_BootstrapErrorApp(message: error.toString()));
+      return;
+    }
 
     AppLog.section('APP START', <String, Object?>{
       'ENV': AppEnvironment.name,
@@ -52,5 +62,32 @@ class AppBootstrap {
       });
       return true;
     };
+  }
+}
+
+class _BootstrapErrorApp extends StatelessWidget {
+  const _BootstrapErrorApp({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: Scaffold(
+        backgroundColor: Colors.black,
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Center(
+              child: Text(
+                'App failed to start.\n\n$message',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white, fontSize: 14),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

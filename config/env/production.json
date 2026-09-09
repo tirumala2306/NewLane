@@ -1,3 +1,4 @@
 {
-  "API_BASE_URL": "https://api.newlane.example.com"
+  "API_BASE_URL": "http://159.223.149.54:5000",
+  "APP_ENV": "production"
 }
