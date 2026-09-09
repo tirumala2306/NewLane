@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -22,7 +21,6 @@ class ConversationScreen extends StatefulWidget {
     required this.chatId,
     required this.title,
     this.avatarUrl = '',
-    this.isOnline = false,
     this.isAnnouncement = false,
     super.key,
   });
@@ -30,7 +28,6 @@ class ConversationScreen extends StatefulWidget {
   final String chatId;
   final String title;
   final String avatarUrl;
-  final bool isOnline;
   final bool isAnnouncement;
 
   @override
@@ -69,39 +66,23 @@ class _ConversationScreenState extends State<ConversationScreen> {
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scrollController.hasClients) return;
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOut,
-      );
+      _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
     });
   }
 
   String _dateLabel(DateTime date) {
-    return 'Today, ${_monthName(date.month)} ${date.day}';
-  }
-
-  String _monthName(int month) {
-    const List<String> names = <String>[
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return names[month - 1];
+    final DateTime now = DateTime.now();
+    final DateTime today = DateTime(now.year, now.month, now.day);
+    final DateTime day = DateTime(date.year, date.month, date.day);
+    if (day == today) return 'Today';
+    if (day == today.subtract(const Duration(days: 1))) return 'Yesterday';
+    return '${date.day}/${date.month}/${date.year}';
   }
 
   @override
   Widget build(BuildContext context) {
     final ProfileState profileState = context.watch<ProfileBloc>().state;
+    final String title = widget.title.trim().isEmpty ? 'Chat' : widget.title.trim();
 
     return BlocProvider(
       create: (_) => InjectionContainer.instance.createConversationBloc()
@@ -114,11 +95,12 @@ class _ConversationScreenState extends State<ConversationScreen> {
           ),
         ),
       child: Scaffold(
-        backgroundColor: AppColors.black,
+        backgroundColor: const Color(0xFF0B0B0B),
         appBar: AppBar(
-          backgroundColor: AppColors.black,
+          backgroundColor: const Color(0xFF121212),
           surfaceTintColor: Colors.transparent,
           elevation: 0,
+          leadingWidth: ScreenUtils.w(40),
           leading: IconButton(
             onPressed: () => context.pop(),
             icon: Icon(
@@ -132,8 +114,8 @@ class _ConversationScreenState extends State<ConversationScreen> {
             children: <Widget>[
               if (widget.isAnnouncement)
                 Container(
-                  width: ScreenUtils.w(36),
-                  height: ScreenUtils.w(36),
+                  width: ScreenUtils.w(40),
+                  height: ScreenUtils.w(40),
                   decoration: BoxDecoration(
                     color: AppColors.cardSurface,
                     borderRadius: BorderRadius.circular(ScreenUtils.r(8)),
@@ -141,168 +123,127 @@ class _ConversationScreenState extends State<ConversationScreen> {
                   child: Icon(
                     Icons.campaign_rounded,
                     color: AppColors.primaryButtonBg,
-                    size: ScreenUtils.sp(18),
+                    size: ScreenUtils.sp(20),
                   ),
                 )
               else
                 ProfileAvatar(
-                  url: widget.avatarUrl,
-                  size: ScreenUtils.w(36),
-                  showOnline: true,
-                  isOnline: widget.isOnline,
+                  url: widget.avatarUrl.isEmpty ? null : widget.avatarUrl,
+                  size: ScreenUtils.w(40),
                 ),
               SizedBox(width: ScreenUtils.w(10)),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      widget.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTypography.semiBold(fontSize: 14),
-                    ),
-                    if (!widget.isAnnouncement) ...<Widget>[
-                      SizedBox(height: ScreenUtils.h(2)),
-                      Row(
-                        children: <Widget>[
-                          Container(
-                            width: ScreenUtils.w(7),
-                            height: ScreenUtils.w(7),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: widget.isOnline
-                                  ? const Color(0xFF22AF4D)
-                                  : AppColors.mutedGrey,
-                            ),
-                          ),
-                          SizedBox(width: ScreenUtils.w(5)),
-                          Text(
-                            widget.isOnline ? 'Online' : 'Offline',
-                            style: AppTypography.regular(
-                              fontSize: 11,
-                              color: AppColors.mutedGrey,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ],
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.semiBold(fontSize: 16),
                 ),
               ),
             ],
           ),
-          actions: <Widget>[
-            IconButton(
-              onPressed: () {},
-              icon: Icon(
-                CupertinoIcons.phone,
-                color: AppColors.primaryButtonBg,
-                size: ScreenUtils.sp(20),
-              ),
-            ),
-            IconButton(
-              onPressed: () {},
-              icon: Icon(
-                CupertinoIcons.videocam,
-                color: AppColors.primaryButtonBg,
-                size: ScreenUtils.sp(22),
-              ),
-            ),
-            IconButton(
-              onPressed: () {},
-              icon: Icon(
-                Icons.more_vert,
-                color: AppColors.primaryButtonBg,
-                size: ScreenUtils.sp(22),
-              ),
-            ),
-          ],
         ),
         body: Column(
           children: <Widget>[
             Expanded(
-              child: BlocConsumer<ConversationBloc, ConversationState>(
-                listener: (BuildContext context, ConversationState state) {
-                  if (state is ConversationReady) {
-                    _scrollToBottom();
-                  }
-                },
-                builder: (BuildContext context, ConversationState state) {
-                  if (state is ConversationLoading ||
-                      state is ConversationInitial) {
-                    return const Center(
-                      child: CircularProgressIndicator(
-                        color: AppColors.primaryButtonBg,
-                      ),
-                    );
-                  }
-                  if (state is ConversationFailure) {
-                    return Center(
-                      child: Text(
-                        state.message,
-                        style: AppTypography.regular(
-                          color: AppColors.mutedGrey,
+              child: DecoratedBox(
+                decoration: const BoxDecoration(
+                  color: Color(0xFF0B0B0B),
+                ),
+                child: BlocConsumer<ConversationBloc, ConversationState>(
+                  listener: (BuildContext context, ConversationState state) {
+                    if (state is ConversationReady) {
+                      _scrollToBottom();
+                    }
+                  },
+                  builder: (BuildContext context, ConversationState state) {
+                    if (state is ConversationLoading ||
+                        state is ConversationInitial) {
+                      return const Center(
+                        child: CircularProgressIndicator(
+                          color: AppColors.primaryButtonBg,
                         ),
-                      ),
-                    );
-                  }
-                  if (state is! ConversationReady) {
-                    return const SizedBox.shrink();
-                  }
-
-                  final List<ChatMessage> messages = state.messages;
-                  return ListView.builder(
-                    controller: _scrollController,
-                    padding: EdgeInsets.fromLTRB(
-                      ScreenUtils.w(16),
-                      ScreenUtils.h(8),
-                      ScreenUtils.w(16),
-                      ScreenUtils.h(12),
-                    ),
-                    itemCount: messages.isEmpty ? 1 : messages.length + 1,
-                    itemBuilder: (BuildContext context, int index) {
-                      if (index == 0) {
-                        final DateTime labelDate = messages.isNotEmpty
-                            ? messages.first.createdAt
-                            : DateTime.now();
-                        return Padding(
-                          padding: EdgeInsets.only(
-                            bottom: ScreenUtils.h(16),
-                            top: ScreenUtils.h(4),
+                      );
+                    }
+                    if (state is ConversationFailure) {
+                      return Center(
+                        child: Text(
+                          state.message,
+                          style: AppTypography.regular(
+                            color: AppColors.mutedGrey,
                           ),
-                          child: Row(
-                            children: <Widget>[
-                              Expanded(child: Divider(color: AppColors.divider)),
-                              Padding(
+                        ),
+                      );
+                    }
+                    if (state is! ConversationReady) {
+                      return const SizedBox.shrink();
+                    }
+
+                    final List<ChatMessage> messages = state.messages;
+                    if (messages.isEmpty) {
+                      return Center(
+                        child: Text(
+                          'Say hi to $title',
+                          style: AppTypography.regular(
+                            fontSize: 13,
+                            color: AppColors.mutedGrey,
+                          ),
+                        ),
+                      );
+                    }
+
+                    return ListView.builder(
+                      controller: _scrollController,
+                      padding: EdgeInsets.fromLTRB(
+                        ScreenUtils.w(10),
+                        ScreenUtils.h(10),
+                        ScreenUtils.w(10),
+                        ScreenUtils.h(8),
+                      ),
+                      itemCount: messages.length + 1,
+                      itemBuilder: (BuildContext context, int index) {
+                        if (index == 0) {
+                          return Padding(
+                            padding: EdgeInsets.only(
+                              bottom: ScreenUtils.h(14),
+                              top: ScreenUtils.h(4),
+                            ),
+                            child: Center(
+                              child: Container(
                                 padding: EdgeInsets.symmetric(
                                   horizontal: ScreenUtils.w(10),
+                                  vertical: ScreenUtils.h(4),
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF1A1A1A),
+                                  borderRadius: BorderRadius.circular(
+                                    ScreenUtils.r(6),
+                                  ),
                                 ),
                                 child: Text(
-                                  _dateLabel(labelDate),
+                                  _dateLabel(messages.first.createdAt),
                                   style: AppTypography.regular(
                                     fontSize: 11,
                                     color: AppColors.mutedGrey,
                                   ),
                                 ),
                               ),
-                              Expanded(child: Divider(color: AppColors.divider)),
-                            ],
+                            ),
+                          );
+                        }
+
+                        final ChatMessage message = messages[index - 1];
+                        return Padding(
+                          padding: EdgeInsets.only(bottom: ScreenUtils.h(4)),
+                          child: ChatMessageBubble(
+                            message: message,
+                            isMine: message.isMine(state.currentUserId),
                           ),
                         );
-                      }
-
-                      final ChatMessage message = messages[index - 1];
-                      return Padding(
-                        padding: EdgeInsets.only(bottom: ScreenUtils.h(10)),
-                        child: ChatMessageBubble(
-                          message: message,
-                          isMine: message.isMine(state.currentUserId),
-                        ),
-                      );
-                    },
-                  );
-                },
+                      },
+                    );
+                  },
+                ),
               ),
             ),
             if (!widget.isAnnouncement)

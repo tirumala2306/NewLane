@@ -38,15 +38,19 @@ import 'package:newlane/features/create_post/data/datasources/offices_remote_dat
 import 'package:newlane/features/create_post/domain/usecases/get_offices.dart';
 import 'package:newlane/features/create_post/repositories/offices_repository.dart';
 import 'package:newlane/features/create_post/repositories/offices_repository_impl.dart';
+import 'package:newlane/features/directory/bloc/agent_detail/agent_detail_bloc.dart';
 import 'package:newlane/features/directory/bloc/directory_bloc.dart';
 import 'package:newlane/features/directory/bloc/directory_event.dart';
 import 'package:newlane/features/directory/bloc/office_directory_bloc.dart';
 import 'package:newlane/features/directory/bloc/office_directory_event.dart';
 import 'package:newlane/features/directory/data/datasources/directory_remote_data_source.dart';
+import 'package:newlane/features/directory/domain/entities/directory_agent.dart';
+import 'package:newlane/features/directory/domain/usecases/get_directory_agent_by_id.dart';
 import 'package:newlane/features/directory/domain/usecases/get_directory_agents.dart';
 import 'package:newlane/features/directory/domain/usecases/get_directory_team.dart';
 import 'package:newlane/features/directory/repositories/directory_repository.dart';
 import 'package:newlane/features/directory/repositories/directory_repository_impl.dart';
+import 'package:newlane/features/directory/bloc/agent_detail/agent_detail_event.dart';
 import 'package:newlane/features/marketing_request/bloc/create/marketing_request_bloc.dart';
 import 'package:newlane/features/marketing_request/bloc/list/my_requests_bloc.dart';
 import 'package:newlane/features/marketing_request/bloc/list/my_requests_event.dart';
@@ -54,9 +58,27 @@ import 'package:newlane/features/marketing_request/data/datasources/marketing_re
 import 'package:newlane/features/marketing_request/domain/entities/marketing_request.dart';
 import 'package:newlane/features/marketing_request/domain/usecases/create_marketing_request.dart';
 import 'package:newlane/features/marketing_request/domain/usecases/get_marketing_request_by_id.dart';
+import 'package:newlane/features/marketing_request/domain/usecases/get_marketing_request_counts.dart';
 import 'package:newlane/features/marketing_request/domain/usecases/get_marketing_requests.dart';
 import 'package:newlane/features/marketing_request/repositories/marketing_request_repository.dart';
 import 'package:newlane/features/marketing_request/repositories/marketing_request_repository_impl.dart';
+import 'package:newlane/features/content_generator/data/datasources/content_generator_remote_data_source.dart';
+import 'package:newlane/features/content_generator/domain/content_generator_draft.dart';
+import 'package:newlane/features/content_generator/domain/usecases/generate_content.dart';
+import 'package:newlane/features/content_generator/repositories/content_generator_repository.dart';
+import 'package:newlane/features/content_generator/repositories/content_generator_repository_impl.dart';
+import 'package:newlane/features/feed/bloc/feed_bloc.dart';
+import 'package:newlane/features/feed/bloc/feed_event.dart';
+import 'package:newlane/features/feed/data/datasources/feed_remote_data_source.dart';
+import 'package:newlane/features/feed/domain/entities/feed_post.dart';
+import 'package:newlane/features/feed/domain/usecases/feed_usecases.dart';
+import 'package:newlane/features/feed/repositories/feed_repository.dart';
+import 'package:newlane/features/feed/repositories/feed_repository_impl.dart';
+import 'package:newlane/features/support/data/datasources/support_remote_data_source.dart';
+import 'package:newlane/features/support/data/mock/support_mock_data.dart';
+import 'package:newlane/features/support/domain/usecases/support_usecases.dart';
+import 'package:newlane/features/support/repositories/support_repository.dart';
+import 'package:newlane/features/support/repositories/support_repository_impl.dart';
 import 'package:newlane/features/profile/bloc/profile_bloc.dart';
 import 'package:newlane/features/profile/bloc/profile_event.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -84,11 +106,30 @@ class InjectionContainer {
   late final DirectoryRepository _directoryRepository;
   late final GetDirectoryAgents _getDirectoryAgents;
   late final GetDirectoryTeam _getDirectoryTeam;
+  late final GetDirectoryAgentById _getDirectoryAgentById;
   late final MarketingRequestRemoteDataSource _marketingRequestRemoteDataSource;
   late final MarketingRequestRepository _marketingRequestRepository;
   late final CreateMarketingRequest _createMarketingRequest;
   late final GetMarketingRequests _getMarketingRequests;
   late final GetMarketingRequestById _getMarketingRequestById;
+  late final GetMarketingRequestCounts _getMarketingRequestCounts;
+  late final ContentGeneratorRemoteDataSource _contentGeneratorRemoteDataSource;
+  late final ContentGeneratorRepository _contentGeneratorRepository;
+  late final GenerateContent _generateContent;
+  late final GetContentTemplates _getContentTemplates;
+  late final FeedRemoteDataSource _feedRemoteDataSource;
+  late final FeedRepository _feedRepository;
+  late final GetFeed _getFeed;
+  late final ToggleFeedLike _toggleFeedLike;
+  late final GetFeedComments _getFeedComments;
+  late final AddFeedComment _addFeedComment;
+  late final CreateFeedPost _createFeedPost;
+  late final SupportRemoteDataSource _supportRemoteDataSource;
+  late final SupportRepository _supportRepository;
+  late final GetMySupportTickets _getMySupportTickets;
+  late final GetSupportTicketById _getSupportTicketById;
+  late final CreateSupportTicket _createSupportTicket;
+  late final ReplySupportTicket _replySupportTicket;
   late final OfficesRemoteDataSource _officesRemoteDataSource;
   late final OfficesRepository _officesRepository;
   late final GetOffices _getOffices;
@@ -120,6 +161,7 @@ class InjectionContainer {
     );
     _getDirectoryAgents = GetDirectoryAgents(_directoryRepository);
     _getDirectoryTeam = GetDirectoryTeam(_directoryRepository);
+    _getDirectoryAgentById = GetDirectoryAgentById(_directoryRepository);
 
     _marketingRequestRemoteDataSource = MarketingRequestRemoteDataSourceImpl(
       apiClient,
@@ -134,6 +176,33 @@ class InjectionContainer {
     _getMarketingRequestById = GetMarketingRequestById(
       _marketingRequestRepository,
     );
+    _getMarketingRequestCounts = GetMarketingRequestCounts(
+      _getMarketingRequests,
+    );
+
+    _contentGeneratorRemoteDataSource = ContentGeneratorRemoteDataSourceImpl(
+      apiClient,
+    );
+    _contentGeneratorRepository = ContentGeneratorRepositoryImpl(
+      remote: _contentGeneratorRemoteDataSource,
+    );
+    _generateContent = GenerateContent(_contentGeneratorRepository);
+    _getContentTemplates = GetContentTemplates(_contentGeneratorRepository);
+
+    _feedRemoteDataSource = FeedRemoteDataSourceImpl(apiClient);
+    _feedRepository = FeedRepositoryImpl(remote: _feedRemoteDataSource);
+    _getFeed = GetFeed(_feedRepository);
+    _toggleFeedLike = ToggleFeedLike(_feedRepository);
+    _getFeedComments = GetFeedComments(_feedRepository);
+    _addFeedComment = AddFeedComment(_feedRepository);
+    _createFeedPost = CreateFeedPost(_feedRepository);
+
+    _supportRemoteDataSource = SupportRemoteDataSourceImpl(apiClient);
+    _supportRepository = SupportRepositoryImpl(remote: _supportRemoteDataSource);
+    _getMySupportTickets = GetMySupportTickets(_supportRepository);
+    _getSupportTicketById = GetSupportTicketById(_supportRepository);
+    _createSupportTicket = CreateSupportTicket(_supportRepository);
+    _replySupportTicket = ReplySupportTicket(_supportRepository);
 
     _officesRemoteDataSource = OfficesRemoteDataSourceImpl(apiClient);
     _officesRepository = OfficesRepositoryImpl(
@@ -212,6 +281,17 @@ class InjectionContainer {
     )..add(const OfficeDirectoryStarted());
   }
 
+  AgentDetailBloc createAgentDetailBloc({
+    required int agentId,
+    DirectoryAgent? initial,
+  }) {
+    return AgentDetailBloc(
+      getDirectoryAgentById: _getDirectoryAgentById,
+      getAgentMe: _getAgentMe,
+      chatRepository: _chatRepository,
+    )..add(AgentDetailStarted(agentId: agentId, initial: initial));
+  }
+
   MarketingRequestBloc createMarketingRequestBloc() {
     return MarketingRequestBloc(
       createMarketingRequest: _createMarketingRequest,
@@ -225,6 +305,63 @@ class InjectionContainer {
 
   Future<Result<MarketingRequest>> fetchMarketingRequestById(int id) {
     return _getMarketingRequestById(GetMarketingRequestByIdParams(id));
+  }
+
+  Future<Result<MarketingRequestCounts>> fetchMarketingRequestCounts() {
+    return _getMarketingRequestCounts(const NoParams());
+  }
+
+  Future<Result<ContentGenerateResult>> generateContent(
+    ContentGeneratorDraft draft,
+  ) {
+    return _generateContent(draft);
+  }
+
+  Future<Result<List<ContentTemplate>>> fetchContentTemplates() {
+    return _getContentTemplates(const NoParams());
+  }
+
+  FeedBloc createFeedBloc() {
+    return FeedBloc(
+      getFeed: _getFeed,
+      toggleFeedLike: _toggleFeedLike,
+    )..add(const FeedStarted());
+  }
+
+  Future<Result<List<FeedPost>>> fetchFeed({String filter = 'all'}) {
+    return _getFeed(GetFeedParams(filter: filter));
+  }
+
+  Future<Result<List<FeedComment>>> fetchFeedComments(int postId) {
+    return _getFeedComments(GetFeedCommentsParams(postId));
+  }
+
+  Future<Result<FeedComment>> addFeedComment(AddFeedCommentParams params) {
+    return _addFeedComment(params);
+  }
+
+  Future<Result<FeedPost>> createFeedPost(CreateFeedPostParams params) {
+    return _createFeedPost(params);
+  }
+
+  Future<Result<List<SupportTicket>>> fetchMySupportTickets() {
+    return _getMySupportTickets(const GetMySupportTicketsParams());
+  }
+
+  Future<Result<SupportTicket>> fetchSupportTicketById(int ticketId) {
+    return _getSupportTicketById(GetSupportTicketByIdParams(ticketId: ticketId));
+  }
+
+  Future<Result<SupportTicket>> createSupportTicket(
+    CreateSupportTicketParams params,
+  ) {
+    return _createSupportTicket(params);
+  }
+
+  Future<Result<SupportTicket>> replySupportTicket(
+    ReplySupportTicketParams params,
+  ) {
+    return _replySupportTicket(params);
   }
 
   TagOfficeBloc createTagOfficeBloc({int? selectedOfficeId}) {

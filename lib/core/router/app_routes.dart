@@ -49,6 +49,11 @@ class AppRoutes {
   static const String forgotPassword = '/forgot-password';
   static const String forgotPasswordSent = '/forgot-password/sent';
   static const String directory = '/directory';
+  static const String directoryAgent = '/directory/agents';
+
+  static String directoryAgentWithId(int agentId) =>
+      '$directoryAgent/$agentId';
+
   static const String officeDirectory = '/office-directory';
   static const String trainingHub = '/home/training-hub';
   static const String contentGenerator = '/content-generator';

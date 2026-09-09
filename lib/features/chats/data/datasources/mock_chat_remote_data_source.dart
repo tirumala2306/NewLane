@@ -267,4 +267,54 @@ class MockChatRemoteDataSource implements ChatRemoteDataSource {
       c.close();
     }
   }
+
+  @override
+  Future<String> ensureDirectChat({
+    required String currentUserId,
+    required String currentUserName,
+    required String peerUserId,
+    required String peerName,
+    String peerAvatar = '',
+    String currentUserAvatar = '',
+  }) async {
+    final List<String> pair = <String>[currentUserId, peerUserId]..sort();
+    final String chatId = 'dm_${pair.join('_')}';
+    final int existing = _threads.indexWhere((ChatThread t) => t.id == chatId);
+    if (existing >= 0) {
+      final ChatThread old = _threads[existing];
+      _threads[existing] = ChatThread(
+        id: old.id,
+        type: ChatThreadType.direct,
+        title: peerName,
+        lastMessage: old.lastMessage,
+        lastMessageAt: old.lastMessageAt,
+        unreadCount: old.unreadCount,
+        isPinned: old.isPinned,
+        avatarUrl: peerAvatar,
+        isOnline: old.isOnline,
+        peerUserId: peerUserId,
+      );
+      _emitThreads();
+      return chatId;
+    }
+
+    _threads.insert(
+      0,
+      ChatThread(
+        id: chatId,
+        type: ChatThreadType.direct,
+        title: peerName,
+        lastMessage: '',
+        lastMessageAt: DateTime.now(),
+        unreadCount: 0,
+        isPinned: false,
+        avatarUrl: peerAvatar,
+        isOnline: false,
+        peerUserId: peerUserId,
+      ),
+    );
+    _messagesByChat.putIfAbsent(chatId, () => <ChatMessage>[]);
+    _emitThreads();
+    return chatId;
+  }
 }

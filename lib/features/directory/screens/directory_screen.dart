@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:newlane/core/router/app_routes.dart';
 import 'package:newlane/core/theme/app_colors.dart';
 import 'package:newlane/core/theme/app_typography.dart';
 import 'package:newlane/core/utils/screen_utils.dart';
@@ -159,7 +160,16 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                           separatorBuilder: (BuildContext context, int index) =>
                               SizedBox(height: ScreenUtils.h(12)),
                           itemBuilder: (BuildContext context, int index) {
-                            return DirectoryAgentCard(agent: agents[index]);
+                            return DirectoryAgentCard(
+                              agent: agents[index],
+                              onTap: () {
+                                final DirectoryAgent agent = agents[index];
+                                context.push(
+                                  AppRoutes.directoryAgentWithId(agent.id),
+                                  extra: agent,
+                                );
+                              },
+                            );
                           },
                         ),
                 ),

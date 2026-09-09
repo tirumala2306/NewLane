@@ -16,18 +16,18 @@ import 'package:newlane/features/auth/screens/sign_in_screen.dart';
 import 'package:newlane/features/chats/screens/chat_screen.dart';
 import 'package:newlane/features/chats/screens/conversation_screen.dart';
 import 'package:newlane/features/content_generator/domain/content_generator_draft.dart';
-import 'package:newlane/features/content_generator/screens/content_edit_screen.dart';
 import 'package:newlane/features/content_generator/screens/content_generating_screen.dart';
 import 'package:newlane/features/content_generator/screens/content_generator_details_screen.dart';
 import 'package:newlane/features/content_generator/screens/content_generator_screen.dart';
 import 'package:newlane/features/content_generator/screens/content_preview_screen.dart';
-import 'package:newlane/features/content_generator/screens/content_save_screen.dart';
 import 'package:newlane/features/create_post/domain/entities/post_location.dart';
 import 'package:newlane/features/create_post/screens/add_location_screen.dart';
 import 'package:newlane/features/create_post/screens/create_post_screen.dart';
 import 'package:newlane/features/create_post/screens/tag_office_screen.dart';
+import 'package:newlane/features/directory/screens/agent_detail_screen.dart';
 import 'package:newlane/features/directory/screens/directory_screen.dart';
 import 'package:newlane/features/directory/screens/office_directory_screen.dart';
+import 'package:newlane/features/directory/domain/entities/directory_agent.dart';
 import 'package:newlane/features/feed/screens/feed_screen.dart';
 import 'package:newlane/features/home/screens/home_screen.dart';
 import 'package:newlane/features/home/screens/main_shell.dart';
@@ -337,9 +337,14 @@ class AppRouter {
         parentNavigatorKey: rootNavigatorKey,
         path: AppRoutes.ticketDetails,
         builder: (BuildContext context, GoRouterState state) {
-          final SupportTicket ticket = state.extra is SupportTicket
+          final SupportTicket? ticket = state.extra is SupportTicket
               ? state.extra as SupportTicket
-              : SupportMockData.tickets.first;
+              : null;
+          if (ticket == null) {
+            return const Scaffold(
+              body: Center(child: Text('Ticket not found')),
+            );
+          }
           return TicketDetailsScreen(ticket: ticket);
         },
       ),
@@ -347,9 +352,14 @@ class AppRouter {
         parentNavigatorKey: rootNavigatorKey,
         path: AppRoutes.ticketConversation,
         builder: (BuildContext context, GoRouterState state) {
-          final SupportTicket ticket = state.extra is SupportTicket
+          final SupportTicket? ticket = state.extra is SupportTicket
               ? state.extra as SupportTicket
-              : SupportMockData.tickets.first;
+              : null;
+          if (ticket == null) {
+            return const Scaffold(
+              body: Center(child: Text('Ticket not found')),
+            );
+          }
           return TicketConversationScreen(ticket: ticket);
         },
       ),
@@ -393,14 +403,12 @@ class AppRouter {
           final Object? extra = state.extra;
           String title = 'Chat';
           String avatarUrl = '';
-          bool isOnline = false;
           bool isAnnouncement = false;
           if (extra is Map) {
             title = (extra['title'] as String?)?.trim().isNotEmpty == true
                 ? extra['title'] as String
                 : title;
             avatarUrl = (extra['avatarUrl'] as String?) ?? '';
-            isOnline = extra['isOnline'] == true;
             isAnnouncement = extra['isAnnouncement'] == true;
           }
           return BlocProvider.value(
@@ -409,7 +417,6 @@ class AppRouter {
               chatId: chatId,
               title: title,
               avatarUrl: avatarUrl,
-              isOnline: isOnline,
               isAnnouncement: isAnnouncement,
             ),
           );
@@ -422,6 +429,24 @@ class AppRouter {
           return BlocProvider(
             create: (_) => InjectionContainer.instance.createDirectoryBloc(),
             child: const DirectoryScreen(),
+          );
+        },
+      ),
+      GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
+        path: '${AppRoutes.directoryAgent}/:agentId',
+        builder: (BuildContext context, GoRouterState state) {
+          final int agentId =
+              int.tryParse(state.pathParameters['agentId'] ?? '') ?? 0;
+          final DirectoryAgent? initial = state.extra is DirectoryAgent
+              ? state.extra as DirectoryAgent
+              : null;
+          return BlocProvider(
+            create: (_) => InjectionContainer.instance.createAgentDetailBloc(
+              agentId: agentId,
+              initial: initial,
+            ),
+            child: AgentDetailScreen(agentId: agentId, initial: initial),
           );
         },
       ),
@@ -440,15 +465,21 @@ class AppRouter {
         parentNavigatorKey: rootNavigatorKey,
         path: AppRoutes.contentGenerator,
         builder: (BuildContext context, GoRouterState state) {
-          return const ContentGeneratorScreen();
+          return BlocProvider.value(
+            value: InjectionContainer.instance.createProfileBloc(),
+            child: const ContentGeneratorScreen(),
+          );
         },
       ),
       GoRoute(
         parentNavigatorKey: rootNavigatorKey,
         path: AppRoutes.contentGeneratorDetails,
         builder: (BuildContext context, GoRouterState state) {
-          return ContentGeneratorDetailsScreen(
-            draft: ContentGeneratorDraft.fromExtra(state.extra),
+          return BlocProvider.value(
+            value: InjectionContainer.instance.createProfileBloc(),
+            child: ContentGeneratorDetailsScreen(
+              draft: ContentGeneratorDraft.fromExtra(state.extra),
+            ),
           );
         },
       ),
@@ -466,24 +497,6 @@ class AppRouter {
         path: AppRoutes.contentGeneratorPreview,
         builder: (BuildContext context, GoRouterState state) {
           return ContentPreviewScreen(
-            draft: ContentGeneratorDraft.fromExtra(state.extra),
-          );
-        },
-      ),
-      GoRoute(
-        parentNavigatorKey: rootNavigatorKey,
-        path: AppRoutes.contentGeneratorEdit,
-        builder: (BuildContext context, GoRouterState state) {
-          return ContentEditScreen(
-            draft: ContentGeneratorDraft.fromExtra(state.extra),
-          );
-        },
-      ),
-      GoRoute(
-        parentNavigatorKey: rootNavigatorKey,
-        path: AppRoutes.contentGeneratorSave,
-        builder: (BuildContext context, GoRouterState state) {
-          return ContentSaveScreen(
             draft: ContentGeneratorDraft.fromExtra(state.extra),
           );
         },
@@ -571,8 +584,12 @@ class AppRouter {
               GoRoute(
                 path: AppRoutes.feed,
                 pageBuilder: (BuildContext context, GoRouterState state) {
-                  return const NoTransitionPage<void>(
-                    child: FeedScreen(),
+                  return NoTransitionPage<void>(
+                    child: BlocProvider(
+                      create: (_) =>
+                          InjectionContainer.instance.createFeedBloc(),
+                      child: const FeedScreen(),
+                    ),
                   );
                 },
               ),

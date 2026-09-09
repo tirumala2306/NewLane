@@ -3,8 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:newlane/core/theme/app_colors.dart';
 import 'package:newlane/core/theme/app_typography.dart';
 import 'package:newlane/core/utils/screen_utils.dart';
-import 'package:newlane/features/content_generator/domain/content_generator_draft.dart';
-import 'package:newlane/shared/widgets/app_svg.dart';
 import 'package:newlane/shared/widgets/newlane_app_bar.dart';
 import 'package:newlane/shared/widgets/unified_button.dart';
 
@@ -12,94 +10,66 @@ PreferredSizeWidget contentGeneratorAppBar(
   BuildContext context, {
   required String title,
   String? description,
+  Widget? suffix,
+  VoidCallback? onBack,
 }) {
   return NewLaneAppBar(
     prefixIcon: Icons.arrow_back_ios_new,
     prefixIconColor: AppColors.white,
-    onPrefixPressed: () => context.pop(),
+    onPrefixPressed: onBack ?? () => context.pop(),
     title: title,
     titleFontSize: 16,
     description: description,
     descriptionFontSize: 10,
     height: ScreenUtils.h(56),
+    suffix: suffix,
   );
 }
 
-class ContentTypeCard extends StatelessWidget {
-  const ContentTypeCard({
-    required this.type,
-    required this.selected,
-    required this.onTap,
+class ContentPhaseTabs extends StatelessWidget {
+  const ContentPhaseTabs({
+    required this.activeIndex,
     super.key,
   });
 
-  final ContentGeneratorType type;
-  final bool selected;
-  final VoidCallback onTap;
+  final int activeIndex;
+
+  static const List<String> _labels = <String>[
+    'Details',
+    'Templates',
+    'Preview',
+  ];
 
   @override
   Widget build(BuildContext context) {
-    final BorderRadius radius = BorderRadius.circular(ScreenUtils.r(10));
-
-    return Material(
-      color: const Color(0xFF111111),
-      borderRadius: radius,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: radius,
-        child: Container(
-          padding: EdgeInsets.symmetric(
-            horizontal: ScreenUtils.w(12),
-            vertical: ScreenUtils.h(16),
-          ),
-          decoration: BoxDecoration(
-            borderRadius: radius,
-            border: Border.all(
-              color: selected
-                  ? AppColors.primaryButtonBg
-                  : AppColors.white.withValues(alpha: 0.08),
+    return Row(
+      children: List<Widget>.generate(_labels.length, (int index) {
+        final bool active = index == activeIndex;
+        return Expanded(
+          child: Container(
+            margin: EdgeInsets.only(
+              right: index == _labels.length - 1 ? 0 : ScreenUtils.w(8),
+            ),
+            padding: EdgeInsets.symmetric(vertical: ScreenUtils.h(10)),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(ScreenUtils.r(8)),
+              border: Border.all(
+                color: active
+                    ? AppColors.primaryButtonBg
+                    : AppColors.white.withValues(alpha: 0.12),
+              ),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              _labels[index],
+              style: AppTypography.semiBold(
+                fontSize: 12,
+                color: active ? AppColors.primaryButtonBg : AppColors.mutedGrey,
+              ),
             ),
           ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              if (type.assetIcon != null)
-                AppSvg(
-                  type.assetIcon!,
-                  width: ScreenUtils.w(28),
-                  height: ScreenUtils.w(28),
-                  color: AppColors.primaryButtonBg,
-                )
-              else
-                Icon(
-                  type.icon,
-                  size: ScreenUtils.sp(28),
-                  color: AppColors.primaryButtonBg,
-                ),
-              SizedBox(height: ScreenUtils.h(10)),
-              Text(
-                type.title,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: AppTypography.semiBold(fontSize: 12, height: 1.2),
-              ),
-              SizedBox(height: ScreenUtils.h(6)),
-              Text(
-                type.subtitle,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: AppTypography.regular(
-                  fontSize: 9,
-                  height: 1.3,
-                  color: AppColors.mutedGrey,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+        );
+      }),
     );
   }
 }
@@ -212,13 +182,11 @@ class ContentDropdownField extends StatelessWidget {
     required this.onTap,
     super.key,
     this.leading,
-    this.borderColor,
   });
 
   final String value;
   final VoidCallback onTap;
   final Widget? leading;
-  final Color? borderColor;
 
   @override
   Widget build(BuildContext context) {
@@ -233,9 +201,7 @@ class ContentDropdownField extends StatelessWidget {
           padding: EdgeInsets.symmetric(horizontal: ScreenUtils.w(12)),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(ScreenUtils.r(8)),
-            border: Border.all(
-              color: borderColor ?? AppColors.glassBorder,
-            ),
+            border: Border.all(color: AppColors.glassBorder),
           ),
           child: Row(
             children: <Widget>[
@@ -314,93 +280,8 @@ Future<String?> showContentOptionsSheet({
   );
 }
 
-class ContentSegmentedTabs extends StatelessWidget {
-  const ContentSegmentedTabs({
-    required this.left,
-    required this.right,
-    required this.leftSelected,
-    required this.onLeft,
-    required this.onRight,
-    super.key,
-  });
-
-  final String left;
-  final String right;
-  final bool leftSelected;
-  final VoidCallback onLeft;
-  final VoidCallback onRight;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: <Widget>[
-        Expanded(
-          child: _TabChip(
-            label: left,
-            selected: leftSelected,
-            onTap: onLeft,
-          ),
-        ),
-        SizedBox(width: ScreenUtils.w(10)),
-        Expanded(
-          child: _TabChip(
-            label: right,
-            selected: !leftSelected,
-            onTap: onRight,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _TabChip extends StatelessWidget {
-  const _TabChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(ScreenUtils.r(8)),
-        child: Container(
-          height: ScreenUtils.h(40),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(ScreenUtils.r(8)),
-            border: Border.all(
-              color: selected
-                  ? AppColors.primaryButtonBg
-                  : AppColors.white.withValues(alpha: 0.12),
-            ),
-          ),
-          child: Text(
-            label,
-            style: AppTypography.semiBold(
-              fontSize: 12,
-              color: selected ? AppColors.primaryButtonBg : AppColors.white,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class ContentBottomBar extends StatelessWidget {
-  const ContentBottomBar({
-    required this.child,
-    super.key,
-  });
+  const ContentBottomBar({required this.child, super.key});
 
   final Widget child;
 
@@ -428,14 +309,16 @@ class ContentPairButtons extends StatelessWidget {
     required this.onLeft,
     required this.onRight,
     super.key,
-    this.rightFilled = true,
+    this.leftIcon,
+    this.rightIcon,
   });
 
   final String leftLabel;
   final String rightLabel;
   final VoidCallback onLeft;
   final VoidCallback onRight;
-  final bool rightFilled;
+  final Widget? leftIcon;
+  final Widget? rightIcon;
 
   @override
   Widget build(BuildContext context) {
@@ -446,53 +329,16 @@ class ContentPairButtons extends StatelessWidget {
             label: leftLabel,
             onPressed: onLeft,
             isExpanded: true,
+            icon: leftIcon,
           ),
         ),
         SizedBox(width: ScreenUtils.w(10)),
         Expanded(
-          child: rightFilled
-              ? UnifiedButton(
-                  label: rightLabel,
-                  onPressed: onRight,
-                  isExpanded: true,
-                )
-              : UnifiedButton.outline(
-                  label: rightLabel,
-                  onPressed: onRight,
-                  isExpanded: true,
-                ),
-        ),
-      ],
-    );
-  }
-}
-
-class ContentTypeHeader extends StatelessWidget {
-  const ContentTypeHeader({required this.type, super.key});
-
-  final ContentGeneratorType type;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: <Widget>[
-        if (type.assetIcon != null)
-          AppSvg(
-            type.assetIcon!,
-            width: ScreenUtils.w(22),
-            height: ScreenUtils.w(22),
-          )
-        else
-          Icon(
-            type.icon,
-            size: ScreenUtils.sp(22),
-            color: AppColors.primaryButtonBg,
-          ),
-        SizedBox(width: ScreenUtils.w(8)),
-        Expanded(
-          child: Text(
-            type.title,
-            style: AppTypography.semiBold(fontSize: 14),
+          child: UnifiedButton(
+            label: rightLabel,
+            onPressed: onRight,
+            isExpanded: true,
+            icon: rightIcon,
           ),
         ),
       ],

@@ -10,9 +10,14 @@ import 'package:newlane/features/profile/widgets/profile_avatar.dart';
 import 'package:newlane/shared/widgets/app_snackbar.dart';
 
 class OfficeTeamMemberCard extends StatelessWidget {
-  const OfficeTeamMemberCard({required this.member, super.key});
+  const OfficeTeamMemberCard({
+    required this.member,
+    super.key,
+    this.onTap,
+  });
 
   final DirectoryAgent member;
+  final VoidCallback? onTap;
 
   String? _avatarUrl(String raw) {
     final String value = raw.trim();
@@ -58,7 +63,12 @@ class OfficeTeamMemberCard extends StatelessWidget {
     final String badge = member.roleBadge;
     final String name = member.fullName.isEmpty ? 'Teammate' : member.fullName;
 
-    return Container(
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(ScreenUtils.r(8)),
+        child: Container(
       width: double.infinity,
       padding: EdgeInsets.all(ScreenUtils.w(14)),
       decoration: BoxDecoration(
@@ -148,6 +158,8 @@ class OfficeTeamMemberCard extends StatelessWidget {
             ],
           ),
         ],
+      ),
+        ),
       ),
     );
   }

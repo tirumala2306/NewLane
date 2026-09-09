@@ -51,4 +51,23 @@ class ChatRepositoryImpl implements ChatRepository {
       currentUserId: currentUserId,
     );
   }
+
+  @override
+  Future<String> ensureDirectChat({
+    required String currentUserId,
+    required String currentUserName,
+    required String peerUserId,
+    required String peerName,
+    String peerAvatar = '',
+    String currentUserAvatar = '',
+  }) {
+    return _remote.ensureDirectChat(
+      currentUserId: currentUserId,
+      currentUserName: currentUserName,
+      peerUserId: peerUserId,
+      peerName: peerName,
+      peerAvatar: peerAvatar,
+      currentUserAvatar: currentUserAvatar,
+    );
+  }
 }

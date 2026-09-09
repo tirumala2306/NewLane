@@ -4,6 +4,8 @@ import 'dart:ui' show PathMetric;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:newlane/core/di/injection_container.dart';
+import 'package:newlane/core/errors/result.dart';
 import 'package:newlane/core/router/app_routes.dart';
 import 'package:newlane/core/theme/app_colors.dart';
 import 'package:newlane/core/theme/app_typography.dart';
@@ -11,6 +13,8 @@ import 'package:newlane/core/utils/screen_utils.dart';
 import 'package:newlane/features/create_post/data/mock/create_post_mock_data.dart';
 import 'package:newlane/features/create_post/domain/entities/office.dart';
 import 'package:newlane/features/create_post/domain/entities/post_location.dart';
+import 'package:newlane/features/feed/domain/entities/feed_post.dart';
+import 'package:newlane/features/feed/domain/usecases/feed_usecases.dart';
 import 'package:newlane/features/home/widgets/home_card.dart';
 import 'package:newlane/shared/widgets/app_snackbar.dart';
 
@@ -32,6 +36,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   CreateShareTo _shareTo = CreateShareTo.all;
   bool _postTypeExpanded = true;
   bool _shareToExpanded = true;
+  bool _submitting = false;
 
   static const Color _dashedBorder = Color(0xFF4A4A4A);
   static const Color _cardBorder = Color(0x1ABD9037);
@@ -102,6 +107,49 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     }
   }
 
+  Future<void> _submitPost() async {
+    final String caption = _captionController.text.trim();
+    if (caption.isEmpty) {
+      AppSnackBar.showInfo(
+        context,
+        title: 'Caption required',
+        message: 'Write something before posting.',
+      );
+      return;
+    }
+
+    setState(() => _submitting = true);
+    final Result<FeedPost> result =
+        await InjectionContainer.instance.createFeedPost(
+      CreateFeedPostParams(
+        caption: caption,
+        postType: _postTypeLabel,
+        visibility: _shareToLabel,
+        mediaPaths: _media.map((XFile f) => f.path).toList(),
+      ),
+    );
+    if (!mounted) return;
+    setState(() => _submitting = false);
+
+    result.when(
+      ok: (_) {
+        AppSnackBar.showSuccess(
+          context,
+          title: 'Posted',
+          message: 'Your post is live on the feed.',
+        );
+        context.pop(true);
+      },
+      err: (failure) {
+        AppSnackBar.showError(
+          context,
+          title: 'Post failed',
+          message: failure.message,
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final double gap = ScreenUtils.h(16);
@@ -126,20 +174,23 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         ),
         actions: <Widget>[
           TextButton(
-            onPressed: () {
-              AppSnackBar.showInfo(
-                context,
-                title: 'Coming Soon',
-                message: 'Post publishing will be available shortly.',
-              );
-            },
-            child: Text(
-              'Next',
-              style: AppTypography.semiBold(
-                fontSize: 14,
-                color: AppColors.primaryButtonBg,
-              ),
-            ),
+            onPressed: _submitting ? null : _submitPost,
+            child: _submitting
+                ? SizedBox(
+                    width: ScreenUtils.w(18),
+                    height: ScreenUtils.w(18),
+                    child: const CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.primaryButtonBg,
+                    ),
+                  )
+                : Text(
+                    'Post',
+                    style: AppTypography.semiBold(
+                      fontSize: 14,
+                      color: AppColors.primaryButtonBg,
+                    ),
+                  ),
           ),
         ],
       ),

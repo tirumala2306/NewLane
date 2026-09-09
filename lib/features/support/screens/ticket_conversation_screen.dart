@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:newlane/core/di/injection_container.dart';
+import 'package:newlane/core/errors/result.dart';
 import 'package:newlane/core/theme/app_colors.dart';
 import 'package:newlane/core/theme/app_typography.dart';
 import 'package:newlane/core/utils/screen_utils.dart';
 import 'package:newlane/features/support/data/mock/support_mock_data.dart';
+import 'package:newlane/features/support/domain/usecases/support_usecases.dart';
 import 'package:newlane/features/support/widgets/support_ticket_widgets.dart';
+import 'package:newlane/shared/widgets/app_snackbar.dart';
 import 'package:newlane/shared/widgets/newlane_app_bar.dart';
 
 class TicketConversationScreen extends StatefulWidget {
@@ -19,44 +23,69 @@ class TicketConversationScreen extends StatefulWidget {
 
 class _TicketConversationScreenState extends State<TicketConversationScreen> {
   final TextEditingController _controller = TextEditingController();
-
-  SupportTicket get _ticket =>
-      SupportTicketStore.instance.byId(widget.ticket.id) ?? widget.ticket;
+  late SupportTicket _ticket;
+  bool _sending = false;
+  bool _loading = false;
 
   @override
   void initState() {
     super.initState();
-    SupportTicketStore.instance.addListener(_onStore);
+    _ticket = widget.ticket;
+    if (_ticket.apiId > 0) {
+      _refresh();
+    }
   }
 
   @override
   void dispose() {
-    SupportTicketStore.instance.removeListener(_onStore);
     _controller.dispose();
     super.dispose();
   }
 
-  void _onStore() {
-    if (mounted) {
-      setState(() {});
-    }
+  Future<void> _refresh() async {
+    setState(() => _loading = true);
+    final Result<SupportTicket> result =
+        await InjectionContainer.instance.fetchSupportTicketById(_ticket.apiId);
+    if (!mounted) return;
+    result.when(
+      ok: (SupportTicket ticket) {
+        setState(() {
+          _ticket = ticket;
+          _loading = false;
+        });
+      },
+      err: (_) => setState(() => _loading = false),
+    );
   }
 
-  void _send() {
+  Future<void> _send() async {
     final String text = _controller.text.trim();
-    if (text.isEmpty || _ticket.isClosed) {
+    if (text.isEmpty || _ticket.isClosed || _sending) {
       return;
     }
-    SupportTicketStore.instance.addMessage(
-      _ticket.id,
-      SupportMessage(
-        isMine: true,
-        author: 'You',
-        timestamp: 'Just now',
-        text: text,
-      ),
+    setState(() => _sending = true);
+    final Result<SupportTicket> result =
+        await InjectionContainer.instance.replySupportTicket(
+      ReplySupportTicketParams(ticketId: _ticket.apiId, message: text),
     );
-    _controller.clear();
+    if (!mounted) return;
+    result.when(
+      ok: (SupportTicket ticket) {
+        _controller.clear();
+        setState(() {
+          _ticket = ticket;
+          _sending = false;
+        });
+      },
+      err: (failure) {
+        setState(() => _sending = false);
+        AppSnackBar.showError(
+          context,
+          title: 'Reply failed',
+          message: failure.message,
+        );
+      },
+    );
   }
 
   @override
@@ -74,6 +103,12 @@ class _TicketConversationScreenState extends State<TicketConversationScreen> {
       ),
       body: Column(
         children: <Widget>[
+          if (_loading)
+            const LinearProgressIndicator(
+              color: AppColors.primaryButtonBg,
+              backgroundColor: Colors.transparent,
+              minHeight: 2,
+            ),
           Padding(
             padding: EdgeInsets.fromLTRB(
               ScreenUtils.w(16),
@@ -185,12 +220,21 @@ class _TicketConversationScreenState extends State<TicketConversationScreen> {
                     ),
                     SizedBox(width: ScreenUtils.w(8)),
                     IconButton(
-                      onPressed: _send,
-                      icon: Icon(
-                        Icons.send_rounded,
-                        color: AppColors.primaryButtonBg,
-                        size: ScreenUtils.sp(22),
-                      ),
+                      onPressed: _sending ? null : _send,
+                      icon: _sending
+                          ? SizedBox(
+                              width: ScreenUtils.w(18),
+                              height: ScreenUtils.w(18),
+                              child: const CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.primaryButtonBg,
+                              ),
+                            )
+                          : Icon(
+                              Icons.send_rounded,
+                              color: AppColors.primaryButtonBg,
+                              size: ScreenUtils.sp(22),
+                            ),
                     ),
                   ],
                 ),

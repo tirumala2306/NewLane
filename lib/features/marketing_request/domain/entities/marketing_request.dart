@@ -49,6 +49,7 @@ enum MarketingRequestStatus {
     if (value.contains('progress') || value.contains('working')) {
       return MarketingRequestStatus.inProgress;
     }
+    // submitted / pending / pending review / review
     return MarketingRequestStatus.submitted;
   }
 }

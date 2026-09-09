@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:go_router/go_router.dart';
-import 'package:newlane/core/router/app_routes.dart';
+import 'package:newlane/core/di/injection_container.dart';
+import 'package:newlane/core/errors/result.dart';
 import 'package:newlane/core/theme/app_colors.dart';
 import 'package:newlane/core/theme/app_typography.dart';
 import 'package:newlane/core/utils/screen_utils.dart';
 import 'package:newlane/features/content_generator/domain/content_generator_draft.dart';
-import 'package:newlane/features/content_generator/widgets/content_generator_stepper.dart';
 import 'package:newlane/features/content_generator/widgets/content_generator_ui.dart';
 import 'package:newlane/features/content_generator/widgets/content_preview_cards.dart';
 import 'package:newlane/shared/widgets/app_snackbar.dart';
@@ -22,7 +21,7 @@ class ContentPreviewScreen extends StatefulWidget {
 
 class _ContentPreviewScreenState extends State<ContentPreviewScreen> {
   late ContentGeneratorDraft _draft;
-  bool _postPreview = true;
+  bool _busy = false;
 
   @override
   void initState() {
@@ -30,39 +29,147 @@ class _ContentPreviewScreenState extends State<ContentPreviewScreen> {
     _draft = widget.draft;
   }
 
-  void _regenerate() {
-    context.pushReplacement(
-      AppRoutes.contentGeneratorGenerating,
-      extra: _draft,
-    );
-  }
-
-  Future<void> _edit() async {
-    final ContentEditResult? result = await context.push<ContentEditResult>(
-      AppRoutes.contentGeneratorEdit,
-      extra: _draft,
-    );
-    if (result == null || !mounted) {
-      return;
-    }
-    if (result.regenerate) {
-      context.pushReplacement(
-        AppRoutes.contentGeneratorGenerating,
-        extra: result.draft,
-      );
-      return;
-    }
+  Future<void> _changeFormat(ContentFormat format) async {
+    if (_draft.format == format) return;
     setState(() {
-      _draft = result.draft;
-      _postPreview = false;
+      _draft = _draft.copyWith(format: format);
+      _busy = true;
     });
+
+    final Result<ContentGenerateResult> result =
+        await InjectionContainer.instance.generateContent(_draft);
+    if (!mounted) return;
+
+    result.when(
+      ok: (ContentGenerateResult value) {
+        setState(() {
+          _busy = false;
+          _draft = _draft.copyWith(
+            generatedCaption: value.caption,
+            graphicSpec: value.graphicSpec.copyWith(format: format),
+            templateName: value.graphicSpec.template,
+            format: format,
+          );
+        });
+      },
+      err: (_) {
+        // Keep local aspect-ratio change even if regenerate fails.
+        setState(() {
+          _busy = false;
+          final ContentGraphicSpec? spec = _draft.graphicSpec;
+          if (spec != null) {
+            _draft = _draft.copyWith(
+              graphicSpec: spec.copyWith(format: format),
+            );
+          }
+        });
+      },
+    );
   }
 
-  Future<void> _copyText() async {
-    await Clipboard.setData(ClipboardData(text: _draft.generatedText));
-    if (!mounted) {
-      return;
-    }
+  Future<void> _changeTemplate() async {
+    final Result<List<ContentTemplate>> result =
+        await InjectionContainer.instance.fetchContentTemplates();
+    if (!mounted) return;
+
+    List<ContentTemplate> templates = const <ContentTemplate>[];
+    result.when(
+      ok: (List<ContentTemplate> list) => templates = list,
+      err: (failure) {
+        AppSnackBar.showError(
+          context,
+          title: 'Templates',
+          message: failure.message,
+        );
+      },
+    );
+    if (templates.isEmpty || !mounted) return;
+
+    final ContentTemplate? selected =
+        await showModalBottomSheet<ContentTemplate>(
+          context: context,
+          backgroundColor: AppColors.cardSurface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(
+              top: Radius.circular(ScreenUtils.r(16)),
+            ),
+          ),
+          builder: (BuildContext context) {
+            return SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Padding(
+                    padding: EdgeInsets.all(ScreenUtils.w(16)),
+                    child: Text(
+                      'Choose Template',
+                      style: AppTypography.semiBold(fontSize: 14),
+                    ),
+                  ),
+                  ...templates.map(
+                    (ContentTemplate t) => ListTile(
+                      title: Text(
+                        t.name,
+                        style: AppTypography.medium(fontSize: 14),
+                      ),
+                      subtitle: Text(
+                        t.category,
+                        style: AppTypography.regular(
+                          fontSize: 11,
+                          color: AppColors.mutedGrey,
+                        ),
+                      ),
+                      trailing: _draft.templateName == t.name
+                          ? const Icon(
+                              Icons.check,
+                              color: AppColors.primaryButtonBg,
+                            )
+                          : null,
+                      onTap: () => Navigator.pop(context, t),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+    if (selected == null || !mounted) return;
+
+    setState(() {
+      _busy = true;
+      _draft = _draft.copyWith(templateName: selected.name);
+    });
+
+    final Result<ContentGenerateResult> gen =
+        await InjectionContainer.instance.generateContent(_draft);
+    if (!mounted) return;
+    gen.when(
+      ok: (ContentGenerateResult value) {
+        setState(() {
+          _busy = false;
+          _draft = _draft.copyWith(
+            generatedCaption: value.caption,
+            graphicSpec: value.graphicSpec,
+            templateName: value.graphicSpec.template,
+          );
+        });
+      },
+      err: (failure) {
+        setState(() => _busy = false);
+        AppSnackBar.showError(
+          context,
+          title: 'Generate failed',
+          message: failure.message,
+        );
+      },
+    );
+  }
+
+  Future<void> _copyCaption() async {
+    final String text = _draft.generatedCaption.trim();
+    if (text.isEmpty) return;
+    await Clipboard.setData(ClipboardData(text: text));
+    if (!mounted) return;
     AppSnackBar.showSuccess(
       context,
       title: 'Copied',
@@ -70,39 +177,69 @@ class _ContentPreviewScreenState extends State<ContentPreviewScreen> {
     );
   }
 
+  Future<void> _share() async {
+    final String text = _draft.generatedCaption.trim().isEmpty
+        ? _draft.propertyAddress
+        : _draft.generatedCaption.trim();
+    await Clipboard.setData(ClipboardData(text: text));
+    if (!mounted) return;
+    AppSnackBar.showSuccess(
+      context,
+      title: 'Ready to share',
+      message: 'Caption copied — paste it in your social app.',
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final ContentGraphicSpec? spec = _draft.graphicSpec;
+
     return Scaffold(
       backgroundColor: AppColors.black,
-      appBar: contentGeneratorAppBar(context, title: 'CONTENT PREVIEW'),
+      appBar: contentGeneratorAppBar(
+        context,
+        title: 'TEMPLATE PREVIEW',
+        description: 'Step 2 of 3',
+        suffix: TextButton(
+          onPressed: _copyCaption,
+          child: Text(
+            'Next',
+            style: AppTypography.semiBold(
+              fontSize: 13,
+              color: AppColors.primaryButtonBg,
+            ),
+          ),
+        ),
+      ),
       body: Column(
         children: <Widget>[
-          SizedBox(height: ScreenUtils.h(8)),
-          const ContentGeneratorStepper(currentStep: 4),
-          SizedBox(height: ScreenUtils.h(16)),
           Expanded(
             child: ListView(
-              padding: EdgeInsets.symmetric(horizontal: ScreenUtils.w(16)),
+              padding: EdgeInsets.fromLTRB(
+                ScreenUtils.w(16),
+                ScreenUtils.h(8),
+                ScreenUtils.w(16),
+                ScreenUtils.h(16),
+              ),
               children: <Widget>[
+                ContentFormatSelector(
+                  selected: _draft.format,
+                  onChanged: _busy ? (_) {} : _changeFormat,
+                ),
+                SizedBox(height: ScreenUtils.h(16)),
                 Row(
                   children: <Widget>[
-                    Icon(
-                      Icons.check_circle,
-                      color: AppColors.primaryButtonBg,
-                      size: ScreenUtils.sp(22),
-                    ),
-                    SizedBox(width: ScreenUtils.w(8)),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
                           Text(
-                            'Your content is ready!',
+                            spec?.template ?? _draft.templateName,
                             style: AppTypography.semiBold(fontSize: 14),
                           ),
-                          SizedBox(height: ScreenUtils.h(4)),
+                          SizedBox(height: ScreenUtils.h(2)),
                           Text(
-                            'Review the generated content below.',
+                            spec?.category ?? 'Real Estate Listing',
                             style: AppTypography.regular(
                               fontSize: 11,
                               color: AppColors.mutedGrey,
@@ -111,57 +248,71 @@ class _ContentPreviewScreenState extends State<ContentPreviewScreen> {
                         ],
                       ),
                     ),
+                    TextButton.icon(
+                      onPressed: _busy ? null : _changeTemplate,
+                      icon: Icon(
+                        Icons.swap_horiz,
+                        size: ScreenUtils.sp(16),
+                        color: AppColors.primaryButtonBg,
+                      ),
+                      label: Text(
+                        'Change',
+                        style: AppTypography.semiBold(
+                          fontSize: 12,
+                          color: AppColors.primaryButtonBg,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
-                SizedBox(height: ScreenUtils.h(16)),
-                ContentSegmentedTabs(
-                  left: 'Post Preview',
-                  right: 'Text Only',
-                  leftSelected: _postPreview,
-                  onLeft: () => setState(() => _postPreview = true),
-                  onRight: () => setState(() => _postPreview = false),
-                ),
-                SizedBox(height: ScreenUtils.h(16)),
-                if (_postPreview)
-                  ContentPostPreviewCard(
-                    draft: _draft,
-                    onTap: () => context.push(
-                      AppRoutes.contentGeneratorSave,
-                      extra: _draft,
-                    ),
-                  )
-                else
-                  ContentTextOnlyCard(
-                    text: _draft.generatedText,
-                    onCopy: _copyText,
-                  ),
-                SizedBox(height: ScreenUtils.h(14)),
-                Center(
-                  child: GestureDetector(
-                    onTap: () => context.push(
-                      AppRoutes.contentGeneratorSave,
-                      extra: _draft,
-                    ),
-                    child: Text(
-                      'Save or Download',
-                      style: AppTypography.semiBold(
-                        fontSize: 12,
+                SizedBox(height: ScreenUtils.h(12)),
+                if (_busy)
+                  Padding(
+                    padding: EdgeInsets.symmetric(vertical: ScreenUtils.h(40)),
+                    child: const Center(
+                      child: CircularProgressIndicator(
                         color: AppColors.primaryButtonBg,
                       ),
                     ),
+                  )
+                else
+                  TemplateGraphicPreview(draft: _draft),
+                if (_draft.generatedCaption.trim().isNotEmpty) ...<Widget>[
+                  SizedBox(height: ScreenUtils.h(18)),
+                  Text(
+                    'Caption',
+                    style: AppTypography.semiBold(fontSize: 13),
                   ),
-                ),
-                SizedBox(height: ScreenUtils.h(24)),
+                  SizedBox(height: ScreenUtils.h(8)),
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.all(ScreenUtils.w(12)),
+                    decoration: BoxDecoration(
+                      color: AppColors.white.withValues(alpha: 0.04),
+                      borderRadius: BorderRadius.circular(ScreenUtils.r(8)),
+                      border: Border.all(color: AppColors.glassBorder),
+                    ),
+                    child: Text(
+                      _draft.generatedCaption,
+                      style: AppTypography.regular(
+                        fontSize: 12,
+                        height: 1.4,
+                        color: AppColors.white.withValues(alpha: 0.9),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
           ContentBottomBar(
             child: ContentPairButtons(
-              leftLabel: 'Regenerate',
-              rightLabel: 'Edit Again',
-              onLeft: _regenerate,
-              onRight: _edit,
-              rightFilled: _postPreview,
+              leftLabel: 'Download',
+              rightLabel: 'Share Template',
+              leftIcon: const Icon(Icons.download_outlined),
+              rightIcon: const Icon(Icons.ios_share),
+              onLeft: _copyCaption,
+              onRight: _share,
             ),
           ),
         ],

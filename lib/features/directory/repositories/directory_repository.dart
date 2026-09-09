@@ -13,4 +13,6 @@ abstract class DirectoryRepository {
     String search = '',
     String department = 'All',
   });
+
+  Future<Result<DirectoryAgent>> getAgentById(int agentId);
 }

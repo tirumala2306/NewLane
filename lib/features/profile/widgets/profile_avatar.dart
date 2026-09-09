@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:newlane/core/theme/app_colors.dart';
+import 'package:newlane/core/utils/media_url.dart';
 import 'package:newlane/core/utils/screen_utils.dart';
 
 /// Circular profile avatar with primary border and optional online dot.
@@ -17,12 +18,11 @@ class ProfileAvatar extends StatelessWidget {
   final bool showOnline;
   final bool isOnline;
 
-  bool get _hasUrl => url != null && url!.trim().isNotEmpty;
-
   @override
   Widget build(BuildContext context) {
     final double resolvedSize = size ?? ScreenUtils.w(60);
     const double borderWidth = 1;
+    final String? networkUrl = resolveMediaUrl(url);
 
     return SizedBox(
       width: resolvedSize,
@@ -46,9 +46,9 @@ class ProfileAvatar extends StatelessWidget {
               width: resolvedSize - (borderWidth * 1),
               height: resolvedSize - (borderWidth * 1),
               child: ClipOval(
-                child: _hasUrl
+                child: networkUrl != null
                     ? Image.network(
-                        url!,
+                        networkUrl,
                         fit: BoxFit.cover,
                         width: resolvedSize,
                         height: resolvedSize,

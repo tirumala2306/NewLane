@@ -15,6 +15,20 @@ extension SupportTicketStatusX on SupportTicketStatus {
         SupportTicketStatus.inProgress => AppColors.primaryButtonBg,
         SupportTicketStatus.resolved => const Color(0xFF4CAF50),
       };
+
+  static SupportTicketStatus fromRaw(String? raw) {
+    final String value = (raw ?? '').trim().toLowerCase().replaceAll('_', ' ');
+    if (value.contains('resolve') ||
+        value.contains('closed') ||
+        value.contains('done') ||
+        value.contains('complete')) {
+      return SupportTicketStatus.resolved;
+    }
+    if (value.contains('progress') || value.contains('working')) {
+      return SupportTicketStatus.inProgress;
+    }
+    return SupportTicketStatus.submitted;
+  }
 }
 
 class SupportCategory {
@@ -48,11 +62,13 @@ class SupportAttachment {
     required this.name,
     required this.sizeLabel,
     this.path,
+    this.url,
   });
 
   final String name;
   final String sizeLabel;
   final String? path;
+  final String? url;
 }
 
 class SupportMessage {
@@ -74,20 +90,27 @@ class SupportMessage {
 class SupportTicket {
   const SupportTicket({
     required this.id,
+    required this.apiId,
     required this.title,
     required this.status,
     required this.updatedLabel,
     required this.submittedLabel,
     required this.timeline,
+    this.category = '',
+    this.description = '',
     this.messages = const <SupportMessage>[],
   });
 
+  /// Display id (e.g. #SR-12).
   final String id;
+  final int apiId;
   final String title;
   final SupportTicketStatus status;
   final String updatedLabel;
   final String submittedLabel;
   final List<SupportTimelineEvent> timeline;
+  final String category;
+  final String description;
   final List<SupportMessage> messages;
 
   String get timeAgo => updatedLabel;
@@ -98,14 +121,18 @@ class SupportTicket {
     SupportTicketStatus? status,
     List<SupportMessage>? messages,
     List<SupportTimelineEvent>? timeline,
+    String? updatedLabel,
   }) {
     return SupportTicket(
       id: id,
+      apiId: apiId,
       title: title,
       status: status ?? this.status,
-      updatedLabel: updatedLabel,
+      updatedLabel: updatedLabel ?? this.updatedLabel,
       submittedLabel: submittedLabel,
       timeline: timeline ?? this.timeline,
+      category: category,
+      description: description,
       messages: messages ?? this.messages,
     );
   }
@@ -149,178 +176,4 @@ class SupportMockData {
     'Recruiting Support',
     'Branding Support',
   ];
-
-  static const List<SupportTicket> tickets = <SupportTicket>[
-    SupportTicket(
-      id: '#SR-2025-000123',
-      title: 'Unable to update my profile photo',
-      status: SupportTicketStatus.inProgress,
-      updatedLabel: 'Updated May 12, 2025',
-      submittedLabel: 'Submitted May 12, 2025 at 10:30 AM',
-      timeline: <SupportTimelineEvent>[
-        SupportTimelineEvent(
-          stage: SupportTicketStatus.submitted,
-          completed: true,
-          timestamp: 'May 12, 2025 at 10:30 AM',
-          message: 'Your request has been submitted successfully.',
-        ),
-        SupportTimelineEvent(
-          stage: SupportTicketStatus.inProgress,
-          completed: true,
-          timestamp: 'May 12, 2025 at 11:15 AM',
-          message: 'Our team is working on your request.',
-        ),
-        SupportTimelineEvent(
-          stage: SupportTicketStatus.resolved,
-          completed: false,
-          timestamp: 'Pending',
-        ),
-      ],
-      messages: <SupportMessage>[
-        SupportMessage(
-          isMine: true,
-          author: 'You',
-          timestamp: 'May 12, 2025 at 10:30 AM',
-          text:
-              'Hi, I am unable to update my profile photo. The upload fails every time I try.',
-          attachment: SupportAttachment(
-            name: 'Screenshot_2025.png',
-            sizeLabel: '1.2 MB',
-          ),
-        ),
-        SupportMessage(
-          isMine: false,
-          author: 'Support Team',
-          timestamp: 'May 12, 2025 at 11:15 AM',
-          text:
-              'Thanks for reporting this. We are looking into the photo upload issue and will update you shortly.',
-        ),
-      ],
-    ),
-    SupportTicket(
-      id: '#SR-2025-000124',
-      title: 'Request to change office assignment',
-      status: SupportTicketStatus.submitted,
-      updatedLabel: 'Updated May 11, 2025',
-      submittedLabel: 'Submitted May 11, 2025 at 02:10 PM',
-      timeline: <SupportTimelineEvent>[
-        SupportTimelineEvent(
-          stage: SupportTicketStatus.submitted,
-          completed: true,
-          timestamp: 'May 11, 2025 at 02:10 PM',
-          message: 'Your request has been submitted successfully.',
-        ),
-        SupportTimelineEvent(
-          stage: SupportTicketStatus.inProgress,
-          completed: false,
-          timestamp: 'Pending',
-        ),
-        SupportTimelineEvent(
-          stage: SupportTicketStatus.resolved,
-          completed: false,
-          timestamp: 'Pending',
-        ),
-      ],
-      messages: <SupportMessage>[
-        SupportMessage(
-          isMine: true,
-          author: 'You',
-          timestamp: 'May 11, 2025 at 02:10 PM',
-          text: 'Please help me change my office assignment to NEWLANE Doral.',
-        ),
-      ],
-    ),
-    SupportTicket(
-      id: '#SR-2025-000121',
-      title: 'How to add a new listing?',
-      status: SupportTicketStatus.resolved,
-      updatedLabel: 'Updated May 10, 2025',
-      submittedLabel: 'Submitted May 10, 2025 at 09:15 AM',
-      timeline: <SupportTimelineEvent>[
-        SupportTimelineEvent(
-          stage: SupportTicketStatus.submitted,
-          completed: true,
-          timestamp: 'May 10, 2025 at 09:15 AM',
-        ),
-        SupportTimelineEvent(
-          stage: SupportTicketStatus.inProgress,
-          completed: true,
-          timestamp: 'May 10, 2025 at 09:45 AM',
-        ),
-        SupportTimelineEvent(
-          stage: SupportTicketStatus.resolved,
-          completed: true,
-          timestamp: 'May 10, 2025 at 03:20 PM',
-          message: 'This request has been resolved.',
-        ),
-      ],
-      messages: <SupportMessage>[
-        SupportMessage(
-          isMine: true,
-          author: 'You',
-          timestamp: 'May 10, 2025 at 09:15 AM',
-          text:
-              "Hi, I need help on how to add a new listing to my account. I couldn't find the option.",
-          attachment: SupportAttachment(
-            name: 'Screenshot_2025...',
-            sizeLabel: '120 KB',
-          ),
-        ),
-        SupportMessage(
-          isMine: false,
-          author: 'Support Team',
-          timestamp: 'May 10, 2025 at 09:45 AM',
-          text:
-              "Hello Sarah, You can add a new listing by tapping on the 'Add Listing' button from your Listings page. Please let us know if you need further assistance.",
-        ),
-        SupportMessage(
-          isMine: true,
-          author: 'You',
-          timestamp: 'May 10, 2025 at 10:05 AM',
-          text: 'Thank you! That helped.',
-        ),
-      ],
-    ),
-  ];
-
-  static List<SupportTicket> get recentTickets => tickets.take(1).toList();
-}
-
-class SupportTicketStore extends ChangeNotifier {
-  SupportTicketStore._()
-      : _tickets = List<SupportTicket>.from(SupportMockData.tickets);
-
-  static final SupportTicketStore instance = SupportTicketStore._();
-
-  final List<SupportTicket> _tickets;
-
-  List<SupportTicket> get tickets => List<SupportTicket>.unmodifiable(_tickets);
-
-  void add(SupportTicket ticket) {
-    _tickets.insert(0, ticket);
-    notifyListeners();
-  }
-
-  void addMessage(String ticketId, SupportMessage message) {
-    final int index = _tickets.indexWhere(
-      (SupportTicket ticket) => ticket.id == ticketId,
-    );
-    if (index < 0) {
-      return;
-    }
-    final SupportTicket current = _tickets[index];
-    _tickets[index] = current.copyWith(
-      messages: <SupportMessage>[...current.messages, message],
-    );
-    notifyListeners();
-  }
-
-  SupportTicket? byId(String id) {
-    for (final SupportTicket ticket in _tickets) {
-      if (ticket.id == id) {
-        return ticket;
-      }
-    }
-    return null;
-  }
 }

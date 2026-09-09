@@ -130,10 +130,8 @@ class ChatThreadTile extends StatelessWidget {
     }
 
     return ProfileAvatar(
-      url: thread.avatarUrl,
+      url: thread.avatarUrl.isEmpty ? null : thread.avatarUrl,
       size: ScreenUtils.w(48),
-      showOnline: true,
-      isOnline: thread.isOnline,
     );
   }
 }

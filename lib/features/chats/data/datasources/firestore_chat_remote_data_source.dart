@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:newlane/core/utils/media_url.dart';
 import 'package:newlane/features/chats/data/datasources/chat_remote_data_source.dart';
 import 'package:newlane/features/chats/domain/entities/chat_message.dart';
 import 'package:newlane/features/chats/domain/entities/chat_thread.dart';
@@ -41,21 +42,52 @@ class FirestoreChatRemoteDataSource implements ChatRemoteDataSource {
                 (data['unreadCounts'] as Map<String, dynamic>?) ??
                 <String, dynamic>{};
             final Timestamp? ts = data['lastMessageAt'] as Timestamp?;
+            final List<dynamic> participants =
+                (data['participantIds'] as List<dynamic>?) ?? <dynamic>[];
+            final Map<String, dynamic> peerNames =
+                (data['peerNames'] as Map<String, dynamic>?) ??
+                <String, dynamic>{};
+            final Map<String, dynamic> peerAvatars =
+                (data['peerAvatars'] as Map<String, dynamic>?) ??
+                <String, dynamic>{};
+
+            String title = (data['title'] as String?) ?? 'Chat';
+            String avatarUrl = (data['avatarUrl'] as String?) ?? '';
+            String peerUserId = (data['peerUserId'] as String?) ?? '';
+
+            // Always show the *other* person's name/photo for DMs.
+            if (typeRaw != 'announcement') {
+              String? otherId;
+              for (final dynamic raw in participants) {
+                final String id = raw.toString();
+                if (id.isNotEmpty && id != currentUserId) {
+                  otherId = id;
+                  break;
+                }
+              }
+              if (otherId != null) {
+                peerUserId = otherId;
+                final String named = peerNames[otherId]?.toString() ?? '';
+                final String av = peerAvatars[otherId]?.toString() ?? '';
+                if (named.trim().isNotEmpty) title = named.trim();
+                if (av.trim().isNotEmpty) avatarUrl = av.trim();
+              }
+            }
 
             return ChatThread(
               id: doc.id,
               type: typeRaw == 'announcement'
                   ? ChatThreadType.announcement
                   : ChatThreadType.direct,
-              title: (data['title'] as String?) ?? 'Chat',
+              title: title,
               lastMessage: (data['lastMessage'] as String?) ?? '',
               lastMessageAt:
                   ts?.toDate() ?? DateTime.fromMillisecondsSinceEpoch(0),
               unreadCount: (unread[currentUserId] as num?)?.toInt() ?? 0,
               isPinned: pinnedBy.contains(currentUserId),
-              avatarUrl: (data['avatarUrl'] as String?) ?? '',
-              isOnline: data['isOnline'] == true,
-              peerUserId: (data['peerUserId'] as String?) ?? '',
+              avatarUrl: avatarUrl,
+              isOnline: false,
+              peerUserId: peerUserId,
             );
           }).toList();
 
@@ -124,15 +156,21 @@ class FirestoreChatRemoteDataSource implements ChatRemoteDataSource {
       'text': trimmed,
       'senderId': currentUserId,
       'senderName': senderName,
-      'senderAvatar': senderAvatar,
+      'senderAvatar': resolveMediaUrl(senderAvatar) ?? senderAvatar,
       'createdAt': FieldValue.serverTimestamp(),
       'readBy': <String>[currentUserId],
     });
+
+    final String resolvedSenderAvatar =
+        resolveMediaUrl(senderAvatar) ?? senderAvatar;
 
     final Map<String, dynamic> unreadUpdates = <String, dynamic>{
       'lastMessage': trimmed,
       'lastMessageAt': FieldValue.serverTimestamp(),
       'lastMessageSenderId': currentUserId,
+      // Keep peer directory fresh so the other user always sees correct name/photo.
+      'peerNames.$currentUserId': senderName,
+      'peerAvatars.$currentUserId': resolvedSenderAvatar,
     };
 
     for (final dynamic rawId in participants) {
@@ -156,5 +194,68 @@ class FirestoreChatRemoteDataSource implements ChatRemoteDataSource {
     await _chats.doc(chatId).update(<String, dynamic>{
       'unreadCounts.$currentUserId': 0,
     });
+  }
+
+  @override
+  Future<String> ensureDirectChat({
+    required String currentUserId,
+    required String currentUserName,
+    required String peerUserId,
+    required String peerName,
+    String peerAvatar = '',
+    String currentUserAvatar = '',
+  }) async {
+    final List<String> pair = <String>[currentUserId, peerUserId]..sort();
+    final String chatId = 'dm_${pair.join('_')}';
+    final DocumentReference<Map<String, dynamic>> chatRef = _chats.doc(chatId);
+    final DocumentSnapshot<Map<String, dynamic>> existing = await chatRef.get();
+
+    final String resolvedPeerAvatar = resolveMediaUrl(peerAvatar) ?? peerAvatar;
+    final String resolvedMyAvatar =
+        resolveMediaUrl(currentUserAvatar) ?? currentUserAvatar;
+
+    if (existing.exists) {
+      // Refresh both sides' names/avatars (do not use single title for both users).
+      await chatRef.set(<String, dynamic>{
+        'peerNames': <String, String>{
+          currentUserId: currentUserName,
+          peerUserId: peerName,
+        },
+        'peerAvatars': <String, String>{
+          currentUserId: resolvedMyAvatar,
+          peerUserId: resolvedPeerAvatar,
+        },
+        'isOnline': false,
+      }, SetOptions(merge: true));
+      return chatId;
+    }
+
+    await chatRef.set(<String, dynamic>{
+      'type': 'direct',
+      'title': peerName,
+      'participantIds': <String>[currentUserId, peerUserId],
+      'lastMessage': '',
+      'lastMessageAt': FieldValue.serverTimestamp(),
+      'lastMessageSenderId': '',
+      'pinnedBy': <String>[],
+      'unreadCounts': <String, int>{
+        currentUserId: 0,
+        peerUserId: 0,
+      },
+      'avatarUrl': resolvedPeerAvatar,
+      'peerUserId': peerUserId,
+      'peerNames': <String, String>{
+        currentUserId: currentUserName,
+        peerUserId: peerName,
+      },
+      'peerAvatars': <String, String>{
+        currentUserId: resolvedMyAvatar,
+        peerUserId: resolvedPeerAvatar,
+      },
+      'isOnline': false,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+
+    return chatId;
   }
 }

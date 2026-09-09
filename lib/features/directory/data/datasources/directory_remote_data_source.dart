@@ -17,6 +17,8 @@ abstract class DirectoryRemoteDataSource {
     String search = '',
     String department = 'All',
   });
+
+  Future<DirectoryAgentModel> getAgentById(int agentId);
 }
 
 class DirectoryRemoteDataSourceImpl implements DirectoryRemoteDataSource {
@@ -95,5 +97,35 @@ class DirectoryRemoteDataSourceImpl implements DirectoryRemoteDataSource {
       envelope.data,
       teamFirst: true,
     );
+  }
+
+  @override
+  Future<DirectoryAgentModel> getAgentById(int agentId) async {
+    final String path = ApiEndpoints.directoryAgentById(agentId);
+    AppLog.line('[DATA SOURCE] GET $path');
+
+    final response = await _apiClient.get<dynamic>(path);
+    final ApiEnvelope envelope = ApiEnvelope.from(response.data);
+    if (!envelope.success) {
+      throw ServerException(
+        envelope.message.isEmpty ? 'Request failed.' : envelope.message,
+        statusCode: response.statusCode,
+      );
+    }
+
+    final Object? data = envelope.data;
+    if (data is Map) {
+      final Map<String, dynamic> map = Map<String, dynamic>.from(data);
+      final Object? nested =
+          map['agent'] ?? map['user'] ?? map['member'] ?? map['data'];
+      if (nested is Map) {
+        return DirectoryAgentModel.fromJson(
+          Map<String, dynamic>.from(nested),
+        );
+      }
+      return DirectoryAgentModel.fromJson(map);
+    }
+
+    throw const ServerException('Invalid agent response.');
   }
 }

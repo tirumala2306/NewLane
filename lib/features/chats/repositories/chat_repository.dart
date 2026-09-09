@@ -21,4 +21,13 @@ abstract class ChatRepository {
     required String chatId,
     required String currentUserId,
   });
+
+  Future<String> ensureDirectChat({
+    required String currentUserId,
+    required String currentUserName,
+    required String peerUserId,
+    required String peerName,
+    String peerAvatar,
+    String currentUserAvatar,
+  });
 }

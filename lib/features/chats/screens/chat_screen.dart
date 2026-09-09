@@ -261,7 +261,6 @@ class _ChatScreenState extends State<ChatScreen> {
                                 extra: <String, dynamic>{
                                   'title': thread.title,
                                   'avatarUrl': thread.avatarUrl,
-                                  'isOnline': thread.isOnline,
                                   'isAnnouncement': thread.isAnnouncement,
                                 },
                               );

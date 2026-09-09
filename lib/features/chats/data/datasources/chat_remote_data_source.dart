@@ -25,4 +25,14 @@ abstract class ChatRemoteDataSource {
     required String chatId,
     required String currentUserId,
   });
+
+  /// Creates the DM thread if missing; returns chat document id.
+  Future<String> ensureDirectChat({
+    required String currentUserId,
+    required String currentUserName,
+    required String peerUserId,
+    required String peerName,
+    String peerAvatar,
+    String currentUserAvatar,
+  });
 }

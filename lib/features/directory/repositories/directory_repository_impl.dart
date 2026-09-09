@@ -50,6 +50,15 @@ class DirectoryRepositoryImpl implements DirectoryRepository {
     });
   }
 
+  @override
+  Future<Result<DirectoryAgent>> getAgentById(int agentId) {
+    return _guard(() async {
+      final model = await _remote.getAgentById(agentId);
+      AppLog.line('[REPO] directory agent OK id=${model.id}');
+      return model.toEntity();
+    });
+  }
+
   Future<Result<T>> _guard<T>(Future<T> Function() action) async {
     try {
       return Ok<T>(await action());

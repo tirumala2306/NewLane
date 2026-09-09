@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:newlane/core/di/injection_container.dart';
+import 'package:newlane/core/errors/result.dart';
 import 'package:newlane/core/router/app_routes.dart';
 import 'package:newlane/core/theme/app_colors.dart';
 import 'package:newlane/core/theme/app_typography.dart';
 import 'package:newlane/core/utils/screen_utils.dart';
 import 'package:newlane/features/support/data/mock/support_mock_data.dart';
+import 'package:newlane/features/support/domain/usecases/support_usecases.dart';
 import 'package:newlane/features/support/widgets/support_form_widgets.dart';
 import 'package:newlane/features/support/widgets/support_ticket_widgets.dart';
 import 'package:newlane/shared/widgets/app_snackbar.dart';
@@ -79,7 +82,7 @@ class _NewSupportTicketScreenState extends State<NewSupportTicketScreen> {
     });
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     if (_subjectController.text.trim().isEmpty ||
         _descriptionController.text.trim().isEmpty) {
       AppSnackBar.showInfo(
@@ -91,51 +94,38 @@ class _NewSupportTicketScreenState extends State<NewSupportTicketScreen> {
     }
 
     setState(() => _submitting = true);
-    final int next = SupportTicketStore.instance.tickets.length + 125;
-    final SupportTicket ticket = SupportTicket(
-      id: '#SR-2025-${next.toString().padLeft(6, '0')}',
-      title: _subjectController.text.trim(),
-      status: SupportTicketStatus.submitted,
-      updatedLabel: 'Updated just now',
-      submittedLabel: 'Submitted just now',
-      timeline: const <SupportTimelineEvent>[
-        SupportTimelineEvent(
-          stage: SupportTicketStatus.submitted,
-          completed: true,
-          timestamp: 'Just now',
-          message: 'Your request has been submitted successfully.',
-        ),
-        SupportTimelineEvent(
-          stage: SupportTicketStatus.inProgress,
-          completed: false,
-          timestamp: 'Pending',
-        ),
-        SupportTimelineEvent(
-          stage: SupportTicketStatus.resolved,
-          completed: false,
-          timestamp: 'Pending',
-        ),
-      ],
-      messages: <SupportMessage>[
-        SupportMessage(
-          isMine: true,
-          author: 'You',
-          timestamp: 'Just now',
-          text: _descriptionController.text.trim(),
-          attachment: _attachments.isEmpty ? null : _attachments.first,
-        ),
-      ],
+    final Result<SupportTicket> result =
+        await InjectionContainer.instance.createSupportTicket(
+      CreateSupportTicketParams(
+        category: _category,
+        subject: _subjectController.text.trim(),
+        description: _descriptionController.text.trim(),
+        attachmentPaths: _attachments
+            .map((SupportAttachment a) => a.path ?? '')
+            .where((String p) => p.isNotEmpty)
+            .toList(),
+      ),
     );
-    SupportTicketStore.instance.add(ticket);
-    if (!mounted) {
-      return;
-    }
-    AppSnackBar.showSuccess(
-      context,
-      title: 'Ticket submitted',
-      message: 'Our team will get back to you soon.',
+    if (!mounted) return;
+    setState(() => _submitting = false);
+
+    result.when(
+      ok: (_) {
+        AppSnackBar.showSuccess(
+          context,
+          title: 'Ticket submitted',
+          message: 'Our team will get back to you soon.',
+        );
+        context.pushReplacement(AppRoutes.ticketSupport);
+      },
+      err: (failure) {
+        AppSnackBar.showError(
+          context,
+          title: 'Submit failed',
+          message: failure.message,
+        );
+      },
     );
-    context.pushReplacement(AppRoutes.ticketSupport);
   }
 
   @override
@@ -262,7 +252,7 @@ class _NewSupportTicketScreenState extends State<NewSupportTicketScreen> {
               child: UnifiedButton(
                 label: 'Submit Ticket',
                 isLoading: _submitting,
-                onPressed: _submit,
+                onPressed: _submitting ? null : _submit,
               ),
             ),
           ),

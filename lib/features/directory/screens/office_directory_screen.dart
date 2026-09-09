@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:newlane/core/router/app_routes.dart';
 import 'package:newlane/core/theme/app_colors.dart';
 import 'package:newlane/core/theme/app_typography.dart';
 import 'package:newlane/core/utils/screen_utils.dart';
@@ -197,7 +198,16 @@ class _OfficeDirectoryScreenState extends State<OfficeDirectoryScreen> {
                                 onInvite: () => _onInvite(context),
                               );
                             }
-                            return OfficeTeamMemberCard(member: members[index]);
+                            return OfficeTeamMemberCard(
+                              member: members[index],
+                              onTap: () {
+                                final DirectoryAgent member = members[index];
+                                context.push(
+                                  AppRoutes.directoryAgentWithId(member.id),
+                                  extra: member,
+                                );
+                              },
+                            );
                           },
                         ),
                 ),

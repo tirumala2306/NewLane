@@ -126,17 +126,17 @@ class HomeMockData {
 
   static const List<HomeRequestStat> requestStats = <HomeRequestStat>[
     HomeRequestStat(
-      count: 3,
+      count: 0,
       label: 'In Progress',
       icon: Icons.timelapse_outlined,
     ),
     HomeRequestStat(
-      count: 12,
+      count: 0,
       label: 'Completed',
       icon: Icons.check_circle_outline,
     ),
     HomeRequestStat(
-      count: 2,
+      count: 0,
       label: 'Pending Review',
       icon: Icons.schedule_outlined,
     ),

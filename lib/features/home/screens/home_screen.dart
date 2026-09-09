@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:newlane/core/constants/asset_constants.dart';
+import 'package:newlane/core/di/injection_container.dart';
+import 'package:newlane/core/errors/result.dart';
 import 'package:newlane/core/router/app_routes.dart';
 import 'package:newlane/core/theme/app_colors.dart';
 import 'package:newlane/core/theme/app_typography.dart';
@@ -15,19 +17,84 @@ import 'package:newlane/features/home/widgets/my_requests_summary.dart';
 import 'package:newlane/features/home/widgets/office_card.dart';
 import 'package:newlane/features/home/widgets/quick_actions_grid.dart';
 import 'package:newlane/features/home/widgets/social_feed_card.dart';
+import 'package:newlane/features/feed/domain/entities/feed_post.dart';
+import 'package:newlane/features/marketing_request/domain/usecases/get_marketing_request_counts.dart';
 import 'package:newlane/features/profile/bloc/profile_bloc.dart';
 import 'package:newlane/features/profile/bloc/profile_state.dart';
 import 'package:newlane/shared/widgets/app_svg.dart';
 import 'package:newlane/shared/widgets/newlane_app_bar.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
   static const Map<String, int> _quickActionBranches = <String, int>{
     'Chat': 1,
   };
 
-  void _onQuickActionTap(BuildContext context, HomeQuickAction action) {
+  MarketingRequestCounts _requestCounts = const MarketingRequestCounts.zero();
+  bool _loadingCounts = true;
+  FeedPost? _feedPreview;
+  bool _loadingFeed = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRequestCounts();
+    _loadFeedPreview();
+  }
+
+  Future<void> _loadRequestCounts() async {
+    final Result<MarketingRequestCounts> result =
+        await InjectionContainer.instance.fetchMarketingRequestCounts();
+    if (!mounted) return;
+    result.when(
+      ok: (MarketingRequestCounts counts) {
+        setState(() {
+          _requestCounts = counts;
+          _loadingCounts = false;
+        });
+      },
+      err: (_) {
+        setState(() => _loadingCounts = false);
+      },
+    );
+  }
+
+  Future<void> _loadFeedPreview() async {
+    final Result<List<FeedPost>> result =
+        await InjectionContainer.instance.fetchFeed();
+    if (!mounted) return;
+    result.when(
+      ok: (List<FeedPost> posts) {
+        setState(() {
+          _feedPreview = posts.isEmpty ? null : posts.first;
+          _loadingFeed = false;
+        });
+      },
+      err: (_) {
+        setState(() => _loadingFeed = false);
+      },
+    );
+  }
+
+  Future<void> _openMyRequests() async {
+    await context.push(AppRoutes.myRequests);
+    await _loadRequestCounts();
+  }
+
+  void _openFeed() {
+    StatefulNavigationShell.of(context).goBranch(2);
+  }
+
+  Future<void> _onQuickActionTap(
+    BuildContext context,
+    HomeQuickAction action,
+  ) async {
     final int? branch = _quickActionBranches[action.title];
     if (branch != null) {
       StatefulNavigationShell.of(context).goBranch(branch);
@@ -45,7 +112,8 @@ class HomeScreen extends StatelessWidget {
     }
 
     if (action.title == 'Marketing Request') {
-      context.push(AppRoutes.marketingRequest);
+      await context.push(AppRoutes.marketingRequest);
+      await _loadRequestCounts();
       return;
     }
 
@@ -53,6 +121,24 @@ class HomeScreen extends StatelessWidget {
       context.push(AppRoutes.contentGenerator);
     }
   }
+
+  List<HomeRequestStat> get _requestStats => <HomeRequestStat>[
+    HomeRequestStat(
+      count: _requestCounts.inProgress,
+      label: 'In Progress',
+      icon: Icons.timelapse_outlined,
+    ),
+    HomeRequestStat(
+      count: _requestCounts.completed,
+      label: 'Completed',
+      icon: Icons.check_circle_outline,
+    ),
+    HomeRequestStat(
+      count: _requestCounts.pendingReview,
+      label: 'Pending Review',
+      icon: Icons.schedule_outlined,
+    ),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -179,13 +265,28 @@ class HomeScreen extends StatelessWidget {
         children: <Widget>[
           HomeSectionHeader(
             title: 'MY REQUESTS',
-            onViewAll: () => context.push(AppRoutes.myRequests),
+            onViewAll: _openMyRequests,
           ),
           SizedBox(height: ScreenUtils.h(12)),
-          MyRequestsSummary(
-            stats: HomeMockData.requestStats,
-            onStatTap: (_) => context.push(AppRoutes.myRequests),
-          ),
+          if (_loadingCounts)
+            Padding(
+              padding: EdgeInsets.symmetric(vertical: ScreenUtils.h(12)),
+              child: const Center(
+                child: SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppColors.primaryButtonBg,
+                  ),
+                ),
+              ),
+            )
+          else
+            MyRequestsSummary(
+              stats: _requestStats,
+              onStatTap: (_) => _openMyRequests(),
+            ),
         ],
       ),
     );
@@ -196,9 +297,38 @@ class HomeScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          HomeSectionHeader(title: 'INTERNAL SOCIAL FEED', onViewAll: () {}),
+          HomeSectionHeader(
+            title: 'INTERNAL SOCIAL FEED',
+            onViewAll: _openFeed,
+          ),
           SizedBox(height: ScreenUtils.h(14)),
-          const SocialFeedCard(post: HomeMockData.feedPost),
+          if (_loadingFeed)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(12),
+                child: SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppColors.primaryButtonBg,
+                  ),
+                ),
+              ),
+            )
+          else if (_feedPreview == null)
+            Text(
+              'No posts yet — create one from +',
+              style: AppTypography.regular(
+                fontSize: 12,
+                color: AppColors.mutedGrey,
+              ),
+            )
+          else
+            SocialFeedCard(
+              post: _feedPreview!,
+              onTap: _openFeed,
+            ),
         ],
       ),
     );

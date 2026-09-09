@@ -25,6 +25,9 @@ class ApiEndpoints {
   static const String directoryAgents = '/api/directory/agents';
   static const String directoryTeam = '/api/directory/team';
 
+  static String directoryAgentById(int agentId) =>
+      '$directoryAgents/$agentId';
+
   static const String offices = '/api/offices';
 
   static String officeById(int officeId) => '$offices/$officeId';
@@ -33,6 +36,28 @@ class ApiEndpoints {
   static const String marketingRequestsMine = '/api/marketing-requests/mine';
 
   static String marketingRequestById(int id) => '$marketingRequests/$id';
+
+  static const String contentGeneratorTemplates =
+      '/api/content-generator/templates';
+  static const String contentGeneratorGenerate =
+      '/api/content-generator/generate';
+
+  static const String feed = '/api/feed';
+
+  static String feedById(int postId) => '$feed/$postId';
+
+  static String feedLike(int postId) => '$feed/$postId/like';
+
+  static String feedComments(int postId) => '$feed/$postId/comments';
+
+  static const String supportTickets = '/api/support/tickets';
+  static const String supportTicketsMine = '/api/support/tickets/mine';
+
+  static String supportTicketById(int ticketId) =>
+      '$supportTickets/$ticketId';
+
+  static String supportTicketReply(int ticketId) =>
+      '$supportTickets/$ticketId/reply';
 
   // Chat (Node + Firebase Admin) — create rooms / seed demo
   static const String chatAnnouncements = '/api/chat/announcements';
