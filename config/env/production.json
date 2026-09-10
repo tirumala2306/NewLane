@@ -1,4 +1,4 @@
 {
-  "API_BASE_URL": "http://159.223.149.54:5000",
+  "API_BASE_URL": "https://api.newlanebrokers.com",
   "APP_ENV": "production"
 }

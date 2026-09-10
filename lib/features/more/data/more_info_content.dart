@@ -21,7 +21,8 @@ class MoreInfoContent {
           'You may request to update or delete your account information at any time by contacting our support team.',
           'If this Privacy Policy is updated, the latest version will always be available within the app.',
         ],
-        footer: 'Support Email: gabrielr@marsblue.co',
+        footer:
+            'Support Email: gabrielr@marsblue.co\n\nOnline: https://api.newlanebrokers.com/legal/privacy.html',
       ),
     ],
   );
@@ -59,7 +60,7 @@ class MoreInfoContent {
           'Training and event questions',
           'General inquiries',
         ],
-        footer: 'Email: gabrielr@marsblue.co',
+        footer: 'Email: gabrielr@marsblue.co\n\nOnline: https://api.newlanebrokers.com/legal/support.html',
       ),
     ],
   );
@@ -87,7 +88,7 @@ class MoreInfoContent {
           'Continued use of the app indicates your acceptance of these Terms & Conditions.',
         ],
         footer:
-            'For questions regarding these terms, please contact gabrielr@marsblue.co.',
+            'For questions regarding these terms, please contact gabrielr@marsblue.co.\n\nOnline: https://api.newlanebrokers.com/legal/terms.html',
       ),
     ],
   );

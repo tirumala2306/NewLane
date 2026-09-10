@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:newlane/core/constants/asset_constants.dart';
+import 'package:newlane/core/constants/legal_urls.dart';
 import 'package:newlane/core/theme/app_colors.dart';
 import 'package:newlane/core/theme/app_typography.dart';
 import 'package:newlane/core/utils/screen_utils.dart';
@@ -78,7 +79,7 @@ class AboutScreen extends StatelessWidget {
                 moreDivider(),
                 MoreNavRow(
                   title: 'Visit Website',
-                  onTap: () => _openUrl('https://newlane.com'),
+                  onTap: () => _openUrl(LegalUrls.index),
                 ),
                 moreDivider(),
                 Row(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:newlane/core/constants/legal_urls.dart';
 import 'package:newlane/core/router/app_routes.dart';
 import 'package:newlane/core/theme/app_colors.dart';
 import 'package:newlane/core/utils/screen_utils.dart';
@@ -7,6 +8,7 @@ import 'package:newlane/features/more/data/more_info_content.dart';
 import 'package:newlane/features/more/widgets/more_card.dart';
 import 'package:newlane/features/more/widgets/more_settings_widgets.dart';
 import 'package:newlane/shared/widgets/newlane_app_bar.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class PrivacySettingsScreen extends StatefulWidget {
   const PrivacySettingsScreen({super.key});
@@ -20,6 +22,12 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
   bool _showContact = false;
   bool _activityStatus = true;
   bool _dataCollection = true;
+
+  Future<void> _openUrl(String url) async {
+    final Uri? uri = Uri.tryParse(url);
+    if (uri == null) return;
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -86,6 +94,11 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
                     AppRoutes.moreInfo,
                     extra: MoreInfoContent.privacy,
                   ),
+                ),
+                moreDivider(),
+                MoreNavRow(
+                  title: 'Open Privacy Policy Online',
+                  onTap: () => _openUrl(LegalUrls.privacy),
                 ),
                 moreDivider(),
                 MoreNavRow(title: 'Manage My Data', onTap: () {}),
