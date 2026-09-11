@@ -54,6 +54,25 @@ class ChatApiRemoteDataSource {
     return _chatIdFrom(response.data);
   }
 
+  /// Ask Node to FCM-push recipients after a Firestore message write.
+  Future<void> notifyMessage({
+    required String conversationId,
+    required List<int> recipientUserIds,
+    required String title,
+    required String body,
+  }) async {
+    if (recipientUserIds.isEmpty || body.trim().isEmpty) return;
+    await _apiClient.post<dynamic>(
+      ApiEndpoints.chatNotifyMessage,
+      data: <String, dynamic>{
+        'conversationId': conversationId,
+        'recipientUserIds': recipientUserIds,
+        'title': title,
+        'body': body,
+      },
+    );
+  }
+
   String _chatIdFrom(Object? data) {
     if (data is Map && data['data'] is Map) {
       final Object? id = (data['data'] as Map)['chatId'];

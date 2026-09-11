@@ -24,13 +24,16 @@ import 'package:newlane/features/create_post/domain/entities/post_location.dart'
 import 'package:newlane/features/create_post/screens/add_location_screen.dart';
 import 'package:newlane/features/create_post/screens/create_post_screen.dart';
 import 'package:newlane/features/create_post/screens/tag_office_screen.dart';
+import 'package:newlane/features/create_post/screens/tag_people_screen.dart';
+import 'package:newlane/features/directory/domain/entities/directory_agent.dart';
 import 'package:newlane/features/directory/screens/agent_detail_screen.dart';
 import 'package:newlane/features/directory/screens/directory_screen.dart';
 import 'package:newlane/features/directory/screens/office_directory_screen.dart';
-import 'package:newlane/features/directory/domain/entities/directory_agent.dart';
 import 'package:newlane/features/feed/screens/feed_screen.dart';
 import 'package:newlane/features/home/screens/home_screen.dart';
 import 'package:newlane/features/home/screens/main_shell.dart';
+import 'package:newlane/features/marketing_request/bloc/create/marketing_request_bloc.dart';
+import 'package:newlane/features/marketing_request/bloc/list/my_requests_bloc.dart';
 import 'package:newlane/features/marketing_request/domain/entities/marketing_request.dart';
 import 'package:newlane/features/marketing_request/screens/marketing_request_detail_screen.dart';
 import 'package:newlane/features/marketing_request/screens/marketing_request_screen.dart';
@@ -38,7 +41,6 @@ import 'package:newlane/features/marketing_request/screens/my_requests_screen.da
 import 'package:newlane/features/more/data/more_info_content.dart';
 import 'package:newlane/features/more/screens/about_screen.dart';
 import 'package:newlane/features/more/screens/account_screen.dart';
-import 'package:newlane/features/more/screens/help_support_screen.dart';
 import 'package:newlane/features/more/screens/more_info_screen.dart';
 import 'package:newlane/features/more/screens/more_screen.dart';
 import 'package:newlane/features/more/screens/notifications_screen.dart';
@@ -48,6 +50,7 @@ import 'package:newlane/features/more/screens/push_notifications_screen.dart';
 import 'package:newlane/features/more/screens/security_settings_screen.dart';
 import 'package:newlane/features/more/screens/terms_screen.dart';
 import 'package:newlane/features/onboarding/screens/onboarding_page.dart';
+import 'package:newlane/features/profile/bloc/profile_bloc.dart';
 import 'package:newlane/features/profile/screens/profile_screen.dart';
 import 'package:newlane/features/support/data/mock/support_mock_data.dart';
 import 'package:newlane/features/support/screens/new_support_ticket_screen.dart';
@@ -55,6 +58,7 @@ import 'package:newlane/features/support/screens/support_screen.dart';
 import 'package:newlane/features/support/screens/ticket_conversation_screen.dart';
 import 'package:newlane/features/support/screens/ticket_details_screen.dart';
 import 'package:newlane/features/support/screens/ticket_support_screen.dart';
+import 'package:newlane/features/training/screens/training_category_screen.dart';
 import 'package:newlane/features/training/screens/training_hub_screen.dart';
 import 'package:newlane/shared/widgets/splash_screen.dart';
 
@@ -212,10 +216,43 @@ class AppRouter {
       GoRoute(
         parentNavigatorKey: rootNavigatorKey,
         path: AppRoutes.more,
-        builder: (BuildContext context, GoRouterState state) {
-          return BlocProvider.value(
-            value: InjectionContainer.instance.createProfileBloc(),
-            child: const MoreScreen(),
+        pageBuilder: (BuildContext context, GoRouterState state) {
+          return CustomTransitionPage<void>(
+            key: state.pageKey,
+            name: state.name,
+            transitionDuration: const Duration(milliseconds: 280),
+            reverseTransitionDuration: const Duration(milliseconds: 220),
+            child: BlocProvider.value(
+              value: InjectionContainer.instance.createProfileBloc(),
+              child: const MoreScreen(),
+            ),
+            transitionsBuilder: (
+              BuildContext context,
+              Animation<double> animation,
+              Animation<double> secondaryAnimation,
+              Widget child,
+            ) {
+              final Animation<Offset> slide = Tween<Offset>(
+                begin: const Offset(1, 0),
+                end: Offset.zero,
+              ).animate(
+                CurvedAnimation(
+                  parent: animation,
+                  curve: Curves.easeOutCubic,
+                  reverseCurve: Curves.easeInCubic,
+                ),
+              );
+              return SlideTransition(
+                position: slide,
+                child: FadeTransition(
+                  opacity: CurvedAnimation(
+                    parent: animation,
+                    curve: const Interval(0, 0.6, curve: Curves.easeOut),
+                  ),
+                  child: child,
+                ),
+              );
+            },
           );
         },
       ),
@@ -255,7 +292,10 @@ class AppRouter {
         parentNavigatorKey: rootNavigatorKey,
         path: AppRoutes.moreNotifications,
         builder: (BuildContext context, GoRouterState state) {
-          return const NotificationsScreen();
+          final Object? extra = state.extra;
+          final bool announcementsOnly = extra == true ||
+              state.uri.queryParameters['scope'] == 'announcements';
+          return NotificationsScreen(announcementsOnly: announcementsOnly);
         },
       ),
       GoRoute(
@@ -293,7 +333,7 @@ class AppRouter {
         parentNavigatorKey: rootNavigatorKey,
         path: AppRoutes.moreHelpSupport,
         builder: (BuildContext context, GoRouterState state) {
-          return const HelpSupportScreen();
+          return const SupportScreen();
         },
       ),
       GoRoute(
@@ -382,6 +422,21 @@ class AppRouter {
               selectedOfficeId: selectedId,
             ),
             child: TagOfficeScreen(selectedOfficeId: selectedId),
+          );
+        },
+      ),
+      GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
+        path: AppRoutes.tagPeople,
+        builder: (BuildContext context, GoRouterState state) {
+          final List<DirectoryAgent> initial = state.extra is List<DirectoryAgent>
+              ? state.extra as List<DirectoryAgent>
+              : const <DirectoryAgent>[];
+          return BlocProvider(
+            create: (_) => InjectionContainer.instance.createTagPeopleBloc(
+              selectedIds: initial.map((DirectoryAgent e) => e.id).toList(),
+            ),
+            child: TagPeopleScreen(initialSelected: initial),
           );
         },
       ),
@@ -505,9 +560,16 @@ class AppRouter {
         parentNavigatorKey: rootNavigatorKey,
         path: AppRoutes.marketingRequest,
         builder: (BuildContext context, GoRouterState state) {
-          return BlocProvider(
-            create: (_) =>
-                InjectionContainer.instance.createMarketingRequestBloc(),
+          return MultiBlocProvider(
+            providers: <BlocProvider<dynamic>>[
+              BlocProvider<MarketingRequestBloc>(
+                create: (_) =>
+                    InjectionContainer.instance.createMarketingRequestBloc(),
+              ),
+              BlocProvider<ProfileBloc>.value(
+                value: InjectionContainer.instance.createProfileBloc(),
+              ),
+            ],
             child: const MarketingRequestScreen(),
           );
         },
@@ -516,8 +578,16 @@ class AppRouter {
         parentNavigatorKey: rootNavigatorKey,
         path: AppRoutes.myRequests,
         builder: (BuildContext context, GoRouterState state) {
-          return BlocProvider(
-            create: (_) => InjectionContainer.instance.createMyRequestsBloc(),
+          return MultiBlocProvider(
+            providers: <BlocProvider<dynamic>>[
+              BlocProvider<MyRequestsBloc>(
+                create: (_) =>
+                    InjectionContainer.instance.createMyRequestsBloc(),
+              ),
+              BlocProvider<ProfileBloc>.value(
+                value: InjectionContainer.instance.createProfileBloc(),
+              ),
+            ],
             child: const MyRequestsScreen(),
           );
         },
@@ -558,8 +628,34 @@ class AppRouter {
                   GoRoute(
                     path: 'training-hub',
                     builder: (BuildContext context, GoRouterState state) {
-                      return const TrainingHubScreen();
+                      return BlocProvider(
+                        create: (_) =>
+                            InjectionContainer.instance.createTrainingBloc(),
+                        child: const TrainingHubScreen(),
+                      );
                     },
+                    routes: <RouteBase>[
+                      GoRoute(
+                        path: 'category/:category',
+                        builder: (BuildContext context, GoRouterState state) {
+                          final String apiCategory = Uri.decodeComponent(
+                            state.pathParameters['category'] ?? '',
+                          );
+                          final Object? extra = state.extra;
+                          final String title = extra is String && extra.trim().isNotEmpty
+                              ? extra.trim()
+                              : apiCategory;
+                          return BlocProvider(
+                            create: (_) =>
+                                InjectionContainer.instance.createTrainingBloc(),
+                            child: TrainingCategoryScreen(
+                              apiCategory: apiCategory,
+                              title: title,
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),

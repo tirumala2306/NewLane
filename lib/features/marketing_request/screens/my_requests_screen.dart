@@ -7,12 +7,13 @@ import 'package:newlane/core/router/app_routes.dart';
 import 'package:newlane/core/theme/app_colors.dart';
 import 'package:newlane/core/theme/app_typography.dart';
 import 'package:newlane/core/utils/screen_utils.dart';
-import 'package:newlane/features/home/data/mock/home_mock_data.dart';
 import 'package:newlane/features/marketing_request/bloc/list/my_requests_bloc.dart';
 import 'package:newlane/features/marketing_request/bloc/list/my_requests_event.dart';
 import 'package:newlane/features/marketing_request/bloc/list/my_requests_state.dart';
 import 'package:newlane/features/marketing_request/domain/entities/marketing_request.dart';
 import 'package:newlane/features/marketing_request/widgets/my_request_card.dart';
+import 'package:newlane/features/profile/bloc/profile_bloc.dart';
+import 'package:newlane/features/profile/bloc/profile_state.dart';
 import 'package:newlane/shared/widgets/app_snackbar.dart';
 import 'package:newlane/shared/widgets/newlane_app_bar.dart';
 import 'package:newlane/shared/widgets/unified_button.dart';
@@ -45,7 +46,12 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final String officeName = HomeMockData.officeName.toUpperCase();
+    final ProfileState profileState = context.watch<ProfileBloc>().state;
+    final String officeName = switch (profileState) {
+      ProfileLoaded(:final profile) when profile.officeName.trim().isNotEmpty =>
+        profile.officeName.trim().toUpperCase(),
+      _ => '',
+    };
 
     return BlocConsumer<MyRequestsBloc, MyRequestsState>(
       listener: (BuildContext context, MyRequestsState state) {
@@ -74,11 +80,10 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
           backgroundColor: AppColors.black,
           appBar: NewLaneAppBar(
             prefixIcon: Icons.arrow_back_ios_new,
-            prefixIconColor: AppColors.white,
             onPrefixPressed: () => context.pop(),
             title: 'MY REQUEST',
             titleFontSize: 16,
-            description: officeName,
+            description: officeName.isEmpty ? null : officeName,
             descriptionFontSize: 10,
             height: ScreenUtils.h(56),
           ),

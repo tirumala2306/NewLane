@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -107,6 +109,9 @@ class _SignInScreenState extends State<SignInScreen> {
 
     // Never show onboarding again after a successful sign-in.
     InjectionContainer.instance.appStorage.setOnboardingCompleted();
+    unawaited(
+      InjectionContainer.instance.pushNotificationService.syncTokenWithBackend(),
+    );
 
     if (result.needsProfileCompletion) {
       context.go(AppRoutes.completeProfile);

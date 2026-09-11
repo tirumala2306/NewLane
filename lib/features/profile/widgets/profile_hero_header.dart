@@ -23,6 +23,7 @@ class ProfileHeroHeader extends StatelessWidget {
     this.onMore,
     this.onMessage,
     this.onCall,
+    this.onEmail,
   });
 
   final String name;
@@ -39,12 +40,19 @@ class ProfileHeroHeader extends StatelessWidget {
   final VoidCallback? onMore;
   final VoidCallback? onMessage;
   final VoidCallback? onCall;
+  final VoidCallback? onEmail;
 
   @override
   Widget build(BuildContext context) {
     final double topInset = MediaQuery.paddingOf(context).top;
     final double coverHeight = ScreenUtils.h(344);
-    final double infoBarHeight = ScreenUtils.h(138);
+    final int actionCount = <bool>[
+      onMessage != null,
+      onCall != null,
+      onEmail != null,
+    ].where((bool v) => v).length;
+    final double infoBarHeight =
+        ScreenUtils.h(actionCount >= 3 ? 150 : 138);
     // Extra height so layer-blur softens upward (not a hard edge).
     final double blurBleed = ScreenUtils.h(40);
     // Push blur + content lower so more of the cover image stays visible.
@@ -168,8 +176,12 @@ class ProfileHeroHeader extends StatelessWidget {
                           ),
                           SizedBox(width: ScreenUtils.w(6)),
                           Expanded(child: _identity()),
-                          SizedBox(width: ScreenUtils.w(8)),
-                          _actions(),
+                          if (onMessage != null ||
+                              onCall != null ||
+                              onEmail != null) ...<Widget>[
+                            SizedBox(width: ScreenUtils.w(8)),
+                            _actions(),
+                          ],
                         ],
                       ),
                     ),
@@ -263,24 +275,44 @@ class ProfileHeroHeader extends StatelessWidget {
   }
 
   Widget _actions() {
-    return IntrinsicWidth(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
+    final int chipCount = <bool>[
+      onMessage != null,
+      onCall != null,
+      onEmail != null,
+    ].where((bool v) => v).length;
+    final double gap = chipCount >= 3 ? ScreenUtils.h(4) : ScreenUtils.h(6);
+    final double vPad = chipCount >= 3 ? ScreenUtils.h(5) : ScreenUtils.h(8);
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: <Widget>[
+        if (onMessage != null) ...<Widget>[
           _ActionChip(
             icon: Icons.chat_bubble_outline,
             label: 'Message',
             onTap: onMessage,
+            verticalPadding: vPad,
           ),
-          SizedBox(height: ScreenUtils.h(6)),
+          if (onCall != null || onEmail != null) SizedBox(height: gap),
+        ],
+        if (onCall != null) ...<Widget>[
           _ActionChip(
             icon: Icons.phone_outlined,
             label: 'Call',
             onTap: onCall,
+            verticalPadding: vPad,
           ),
+          if (onEmail != null) SizedBox(height: gap),
         ],
-      ),
+        if (onEmail != null)
+          _ActionChip(
+            icon: Icons.mail_outline,
+            label: 'Email',
+            onTap: onEmail,
+            verticalPadding: vPad,
+          ),
+      ],
     );
   }
 }
@@ -290,11 +322,13 @@ class _ActionChip extends StatelessWidget {
     required this.icon,
     required this.label,
     this.onTap,
+    this.verticalPadding,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback? onTap;
+  final double? verticalPadding;
 
   @override
   Widget build(BuildContext context) {
@@ -306,7 +340,7 @@ class _ActionChip extends StatelessWidget {
         child: Container(
           padding: EdgeInsets.symmetric(
             horizontal: ScreenUtils.w(10),
-            vertical: ScreenUtils.h(8),
+            vertical: verticalPadding ?? ScreenUtils.h(8),
           ),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(ScreenUtils.r(8)),
@@ -315,7 +349,7 @@ class _ActionChip extends StatelessWidget {
             ),
           ),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               Icon(
                 icon,

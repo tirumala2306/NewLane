@@ -98,7 +98,7 @@ class CompleteProfileBloc
       return 'Please enter your phone number.';
     }
     if (event.jobTitle.trim().isEmpty) {
-      return 'Please select a job title.';
+      return 'Job title is not set on your account yet. Contact your office manager.';
     }
     final List<String> specialties = event.specialties
         .map((String s) => s.trim())

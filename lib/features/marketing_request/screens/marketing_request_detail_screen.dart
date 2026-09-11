@@ -90,7 +90,6 @@ class _MarketingRequestDetailScreenState
       backgroundColor: AppColors.black,
       appBar: NewLaneAppBar(
         prefixIcon: Icons.arrow_back_ios_new,
-        prefixIconColor: AppColors.white,
         onPrefixPressed: () => context.pop(),
         title: 'REQUEST STATUS',
         titleFontSize: 16,

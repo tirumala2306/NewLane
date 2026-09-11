@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:newlane/core/di/injection_container.dart';
 import 'package:newlane/core/theme/app_colors.dart';
 import 'package:newlane/core/utils/screen_utils.dart';
 import 'package:newlane/features/more/widgets/more_card.dart';
 import 'package:newlane/features/more/widgets/more_settings_widgets.dart';
+import 'package:newlane/features/notifications/data/push_notification_prefs.dart';
 import 'package:newlane/shared/widgets/newlane_app_bar.dart';
 
 class PushNotificationsScreen extends StatefulWidget {
@@ -15,17 +19,23 @@ class PushNotificationsScreen extends StatefulWidget {
 }
 
 class _PushNotificationsScreenState extends State<PushNotificationsScreen> {
-  bool _enabled = true;
-  bool _messages = true;
-  bool _leads = false;
-  bool _listings = true;
-  bool _price = true;
-  bool _openHouse = true;
-  bool _marketing = false;
-  bool _system = true;
+  late PushNotificationPrefs _prefs;
+
+  @override
+  void initState() {
+    super.initState();
+    _prefs = InjectionContainer.instance.pushPrefsStore.read();
+  }
+
+  Future<void> _update(PushNotificationPrefs next) async {
+    setState(() => _prefs = next);
+    await InjectionContainer.instance.pushNotificationService.applyPrefs(next);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final bool enabled = _prefs.enabled;
+
     return Scaffold(
       backgroundColor: AppColors.black,
       appBar: NewLaneAppBar(
@@ -47,8 +57,8 @@ class _PushNotificationsScreenState extends State<PushNotificationsScreen> {
             child: MoreToggleRow(
               title: 'Enable Push Notifications',
               subtitle: 'Receive push notifications on your device',
-              value: _enabled,
-              onChanged: (bool v) => setState(() => _enabled = v),
+              value: enabled,
+              onChanged: (bool v) => unawaited(_update(_prefs.copyWith(enabled: v))),
             ),
           ),
           SizedBox(height: ScreenUtils.h(20)),
@@ -59,62 +69,52 @@ class _PushNotificationsScreenState extends State<PushNotificationsScreen> {
               children: <Widget>[
                 MoreToggleRow(
                   title: 'New Messages',
-                  subtitle: 'Get notified when you receive new messages',
-                  value: _messages && _enabled,
-                  onChanged: _enabled
-                      ? (bool v) => setState(() => _messages = v)
+                  subtitle: 'Get notified when you receive new chat messages',
+                  value: _prefs.messages && enabled,
+                  onChanged: enabled
+                      ? (bool v) =>
+                          unawaited(_update(_prefs.copyWith(messages: v)))
                       : (_) {},
                 ),
                 moreDivider(),
                 MoreToggleRow(
-                  title: 'New Leads',
-                  subtitle: 'Get notified for new leads',
-                  value: _leads && _enabled,
-                  onChanged:
-                      _enabled ? (bool v) => setState(() => _leads = v) : (_) {},
-                ),
-                moreDivider(),
-                MoreToggleRow(
-                  title: 'Listing Updates',
-                  subtitle: 'Get notified about listing updates',
-                  value: _listings && _enabled,
-                  onChanged: _enabled
-                      ? (bool v) => setState(() => _listings = v)
+                  title: 'Support Tickets',
+                  subtitle: 'Updates and replies on your support tickets',
+                  value: _prefs.tickets && enabled,
+                  onChanged: enabled
+                      ? (bool v) =>
+                          unawaited(_update(_prefs.copyWith(tickets: v)))
                       : (_) {},
                 ),
                 moreDivider(),
                 MoreToggleRow(
-                  title: 'Price Changes',
-                  subtitle: 'Get notified about price changes',
-                  value: _price && _enabled,
-                  onChanged:
-                      _enabled ? (bool v) => setState(() => _price = v) : (_) {},
-                ),
-                moreDivider(),
-                MoreToggleRow(
-                  title: 'Open House Reminders',
-                  subtitle: 'Get reminders for open houses',
-                  value: _openHouse && _enabled,
-                  onChanged: _enabled
-                      ? (bool v) => setState(() => _openHouse = v)
+                  title: 'Announcements',
+                  subtitle: 'Office and company announcements',
+                  value: _prefs.announcements && enabled,
+                  onChanged: enabled
+                      ? (bool v) => unawaited(
+                            _update(_prefs.copyWith(announcements: v)),
+                          )
                       : (_) {},
                 ),
                 moreDivider(),
                 MoreToggleRow(
                   title: 'Marketing Updates',
-                  subtitle: 'Get notified about marketing and promotions',
-                  value: _marketing && _enabled,
-                  onChanged: _enabled
-                      ? (bool v) => setState(() => _marketing = v)
+                  subtitle: 'Marketing request status and promotions',
+                  value: _prefs.marketing && enabled,
+                  onChanged: enabled
+                      ? (bool v) =>
+                          unawaited(_update(_prefs.copyWith(marketing: v)))
                       : (_) {},
                 ),
                 moreDivider(),
                 MoreToggleRow(
                   title: 'System Updates',
                   subtitle: 'Important system notifications',
-                  value: _system && _enabled,
-                  onChanged: _enabled
-                      ? (bool v) => setState(() => _system = v)
+                  value: _prefs.system && enabled,
+                  onChanged: enabled
+                      ? (bool v) =>
+                          unawaited(_update(_prefs.copyWith(system: v)))
                       : (_) {},
                 ),
               ],

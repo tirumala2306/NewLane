@@ -43,6 +43,9 @@ class AppBootstrap {
 
     await DeepLinkHandler.init(AppRouter.router);
 
+    // Phase 2: FCM permission + token listeners (token sync after login).
+    await InjectionContainer.instance.pushNotificationService.init();
+
     runApp(const NewLaneApp());
   }
 

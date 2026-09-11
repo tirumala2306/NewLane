@@ -88,11 +88,28 @@ class ChatThreadTile extends StatelessWidget {
                         if (thread.hasUnread) ...<Widget>[
                           SizedBox(width: ScreenUtils.w(8)),
                           Container(
-                            width: ScreenUtils.w(8),
-                            height: ScreenUtils.w(8),
-                            decoration: const BoxDecoration(
-                              shape: BoxShape.circle,
+                            constraints: BoxConstraints(
+                              minWidth: ScreenUtils.w(18),
+                            ),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: ScreenUtils.w(5),
+                              vertical: ScreenUtils.h(2),
+                            ),
+                            decoration: BoxDecoration(
                               color: AppColors.primaryButtonBg,
+                              borderRadius: BorderRadius.circular(
+                                ScreenUtils.r(10),
+                              ),
+                            ),
+                            child: Text(
+                              thread.unreadCount > 9
+                                  ? '9+'
+                                  : '${thread.unreadCount}',
+                              textAlign: TextAlign.center,
+                              style: AppTypography.semiBold(
+                                fontSize: 10,
+                                color: AppColors.black,
+                              ),
                             ),
                           ),
                         ],

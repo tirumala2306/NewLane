@@ -67,6 +67,10 @@ class FeedRepositoryImpl implements FeedRepository {
     required String postType,
     required String visibility,
     List<String> mediaPaths = const <String>[],
+    String locationLabel = '',
+    String price = '',
+    List<int> taggedUserIds = const <int>[],
+    int? officeId,
   }) {
     return _guard(() async {
       final model = await _remote.createPost(
@@ -74,6 +78,10 @@ class FeedRepositoryImpl implements FeedRepository {
         postType: postType,
         visibility: visibility,
         mediaPaths: mediaPaths,
+        locationLabel: locationLabel,
+        price: price,
+        taggedUserIds: taggedUserIds,
+        officeId: officeId,
       );
       return model.toEntity();
     });

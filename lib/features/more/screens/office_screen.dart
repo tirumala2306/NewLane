@@ -4,10 +4,13 @@ import 'package:go_router/go_router.dart';
 import 'package:newlane/core/constants/asset_constants.dart';
 import 'package:newlane/core/di/injection_container.dart';
 import 'package:newlane/core/errors/result.dart';
+import 'package:newlane/core/router/app_routes.dart';
 import 'package:newlane/core/theme/app_colors.dart';
 import 'package:newlane/core/theme/app_typography.dart';
 import 'package:newlane/core/utils/screen_utils.dart';
 import 'package:newlane/features/create_post/domain/entities/office.dart';
+import 'package:newlane/features/directory/domain/entities/directory_agent.dart';
+import 'package:newlane/features/directory/widgets/office_team_member_card.dart';
 import 'package:newlane/features/more/widgets/more_card.dart';
 import 'package:newlane/features/profile/bloc/profile_bloc.dart';
 import 'package:newlane/features/profile/bloc/profile_event.dart';
@@ -25,8 +28,11 @@ class OfficeScreen extends StatefulWidget {
 class _OfficeScreenState extends State<OfficeScreen> {
   Office? _office;
   bool _loadingOffice = false;
+  bool _loadingMembers = false;
   String? _error;
+  String? _membersError;
   int? _loadedForOfficeId;
+  List<DirectoryAgent> _members = <DirectoryAgent>[];
 
   @override
   void initState() {
@@ -44,17 +50,25 @@ class _OfficeScreenState extends State<OfficeScreen> {
   Future<void> _loadAssignedOffice(ProfileLoaded state) async {
     final int officeId = state.profile.officeId;
     final String officeName = state.profile.officeName.trim();
+    final String officeQuery = state.profile.directoryOfficeQuery;
 
     if (officeId <= 0 && officeName.isEmpty) {
       setState(() {
         _office = null;
+        _members = <DirectoryAgent>[];
         _error = 'No office is assigned to your account yet.';
         _loadingOffice = false;
+        _loadingMembers = false;
       });
       return;
     }
 
-    if (_loadedForOfficeId == officeId && _office != null) return;
+    if (_loadedForOfficeId == officeId && _office != null) {
+      if (_members.isEmpty && !_loadingMembers) {
+        await _loadMembers(officeQuery);
+      }
+      return;
+    }
 
     setState(() {
       _loadingOffice = true;
@@ -75,23 +89,30 @@ class _OfficeScreenState extends State<OfficeScreen> {
           _loadedForOfficeId = officeId;
           _loadingOffice = false;
         });
+        await _loadMembers(officeQuery);
         return;
       }
       final String? apiError = byId.when(
         ok: (_) => null,
         err: (failure) => failure.message,
       );
-      await _loadByName(officeName, officeId: officeId, error: apiError);
+      await _loadByName(
+        officeName,
+        officeId: officeId,
+        error: apiError,
+        officeQuery: officeQuery,
+      );
       return;
     }
 
-    await _loadByName(officeName);
+    await _loadByName(officeName, officeQuery: officeQuery);
   }
 
   Future<void> _loadByName(
     String officeName, {
     int officeId = 0,
     String? error,
+    String officeQuery = '',
   }) async {
     final Result<List<Office>> listResult =
         await InjectionContainer.instance.fetchOffices(search: officeName);
@@ -106,8 +127,7 @@ class _OfficeScreenState extends State<OfficeScreen> {
             match = office;
             break;
           }
-          if (needle.isNotEmpty &&
-              office.name.toLowerCase() == needle) {
+          if (needle.isNotEmpty && office.name.toLowerCase() == needle) {
             match = office;
             break;
           }
@@ -135,6 +155,65 @@ class _OfficeScreenState extends State<OfficeScreen> {
           _error = error ?? failure.message;
         });
       },
+    );
+
+    final String query = officeQuery.trim().isNotEmpty
+        ? officeQuery.trim()
+        : (officeId > 0 ? '$officeId' : officeName);
+    await _loadMembers(query);
+  }
+
+  Future<void> _loadMembers(String officeQuery) async {
+    final String query = officeQuery.trim();
+    if (query.isEmpty) {
+      setState(() {
+        _members = <DirectoryAgent>[];
+        _loadingMembers = false;
+        _membersError = null;
+      });
+      return;
+    }
+
+    setState(() {
+      _loadingMembers = true;
+      _membersError = null;
+    });
+
+    final Result<DirectoryAgentsPage> result =
+        await InjectionContainer.instance.fetchDirectoryAgents(
+      office: query,
+      sort: 'name_asc',
+    );
+    if (!mounted) return;
+
+    result.when(
+      ok: (DirectoryAgentsPage page) {
+        final List<DirectoryAgent> agents = List<DirectoryAgent>.from(
+          page.agents,
+        )..sort(
+            (DirectoryAgent a, DirectoryAgent b) =>
+                a.fullName.toLowerCase().compareTo(b.fullName.toLowerCase()),
+          );
+        setState(() {
+          _members = agents;
+          _loadingMembers = false;
+          _membersError = null;
+        });
+      },
+      err: (failure) {
+        setState(() {
+          _members = <DirectoryAgent>[];
+          _loadingMembers = false;
+          _membersError = failure.message;
+        });
+      },
+    );
+  }
+
+  void _openMember(DirectoryAgent member) {
+    context.push(
+      '${AppRoutes.directoryAgent}/${member.id}',
+      extra: member,
     );
   }
 
@@ -273,6 +352,51 @@ class _OfficeScreenState extends State<OfficeScreen> {
                         ],
                       ),
               ),
+              SizedBox(height: ScreenUtils.h(16)),
+              Text(
+                'People in this office',
+                style: AppTypography.semiBold(fontSize: 14),
+              ),
+              SizedBox(height: ScreenUtils.h(10)),
+              if (_loadingMembers)
+                Padding(
+                  padding: EdgeInsets.symmetric(vertical: ScreenUtils.h(24)),
+                  child: const Center(
+                    child: CircularProgressIndicator(
+                      color: AppColors.primaryButtonBg,
+                    ),
+                  ),
+                )
+              else if (_membersError != null && _members.isEmpty)
+                MoreCard(
+                  child: Text(
+                    _membersError!,
+                    style: AppTypography.regular(
+                      fontSize: 12,
+                      color: AppColors.mutedGrey,
+                    ),
+                  ),
+                )
+              else if (_members.isEmpty)
+                MoreCard(
+                  child: Text(
+                    'No teammates found for this office yet.',
+                    style: AppTypography.regular(
+                      fontSize: 12,
+                      color: AppColors.mutedGrey,
+                    ),
+                  ),
+                )
+              else
+                ..._members.map((DirectoryAgent member) {
+                  return Padding(
+                    padding: EdgeInsets.only(bottom: ScreenUtils.h(10)),
+                    child: OfficeTeamMemberCard(
+                      member: member,
+                      onTap: () => _openMember(member),
+                    ),
+                  );
+                }),
             ],
           ),
         );

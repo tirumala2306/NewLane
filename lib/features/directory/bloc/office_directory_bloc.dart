@@ -29,6 +29,7 @@ class OfficeDirectoryBloc
   String _search = '';
   String _department = defaultDepartment;
   String _officeName = '';
+  int _currentUserId = 0;
 
   Future<void> _onStarted(
     OfficeDirectoryStarted event,
@@ -69,7 +70,10 @@ class OfficeDirectoryBloc
     result.when(
       ok: (profile) {
         _officeName = profile.officeName.trim();
-        AppLog.line('[BLOC] office directory office="$_officeName"');
+        _currentUserId = profile.id;
+        AppLog.line(
+          '[BLOC] office directory office="$_officeName" me=$_currentUserId',
+        );
       },
       err: (failure) {
         AppLog.line(
@@ -98,7 +102,7 @@ class OfficeDirectoryBloc
       ),
     );
 
-    if (resolveOffice || _officeName.isEmpty) {
+    if (resolveOffice || _officeName.isEmpty || _currentUserId <= 0) {
       await _resolveOfficeName();
     }
 
@@ -112,12 +116,21 @@ class OfficeDirectoryBloc
 
     result.when(
       ok: (page) {
+        final List<DirectoryAgent> others = page.agents
+            .where((DirectoryAgent a) => a.id != _currentUserId)
+            .toList();
+        final DirectoryAgentsPage filtered = DirectoryAgentsPage(
+          agents: others,
+          total: others.length,
+          page: page.page,
+          pages: page.pages,
+        );
         AppLog.line(
-          '[BLOC] office directory loaded members=${page.agents.length}',
+          '[BLOC] office directory loaded members=${others.length} (excluded me)',
         );
         emit(
           OfficeDirectoryLoaded(
-            page: page,
+            page: filtered,
             department: _department,
             officeName: _officeName,
           ),

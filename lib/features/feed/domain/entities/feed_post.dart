@@ -3,12 +3,14 @@ class FeedPost {
     required this.id,
     required this.caption,
     required this.authorName,
+    this.authorId = 0,
     this.authorAvatar = '',
     this.officeLabel = '',
     this.postType = '',
     this.visibility = 'All',
     this.imageUrl = '',
     this.mediaUrls = const <String>[],
+    this.locationLabel = '',
     this.likesCount = 0,
     this.commentsCount = 0,
     this.likedByMe = false,
@@ -18,12 +20,14 @@ class FeedPost {
   final int id;
   final String caption;
   final String authorName;
+  final int authorId;
   final String authorAvatar;
   final String officeLabel;
   final String postType;
   final String visibility;
   final String imageUrl;
   final List<String> mediaUrls;
+  final String locationLabel;
   final int likesCount;
   final int commentsCount;
   final bool likedByMe;
@@ -49,12 +53,14 @@ class FeedPost {
       id: id,
       caption: caption,
       authorName: authorName,
+      authorId: authorId,
       authorAvatar: authorAvatar,
       officeLabel: officeLabel,
       postType: postType,
       visibility: visibility,
       imageUrl: imageUrl,
       mediaUrls: mediaUrls,
+      locationLabel: locationLabel,
       likesCount: likesCount ?? this.likesCount,
       commentsCount: commentsCount ?? this.commentsCount,
       likedByMe: likedByMe ?? this.likedByMe,

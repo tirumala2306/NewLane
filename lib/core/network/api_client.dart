@@ -24,7 +24,9 @@ class ApiClient {
             ),
           ) {
     _dio.interceptors.add(AuthInterceptor(storage));
-    _dio.interceptors.add(ApiLogInterceptor());
+    if (AppEnvironment.isNetworkLoggingEnabled) {
+      _dio.interceptors.add(ApiLogInterceptor());
+    }
   }
 
   final Dio _dio;
@@ -80,6 +82,24 @@ class ApiClient {
       );
     } on DioException catch (error) {
       throw _mapDioError(error, 'PUT');
+    }
+  }
+
+  Future<Response<T>> delete<T>(
+    String path, {
+    Object? data,
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+  }) async {
+    try {
+      return await _dio.delete<T>(
+        path,
+        data: data,
+        queryParameters: queryParameters,
+        options: options,
+      );
+    } on DioException catch (error) {
+      throw _mapDioError(error, 'DELETE');
     }
   }
 

@@ -47,7 +47,12 @@ class MarketingRequestModel {
       listingPrice: price,
       notes: (json['notes'] ?? json['instructions'] ?? '').toString(),
       status: MarketingRequestStatus.fromRaw(
-        (json['status'] ?? json['state'] ?? '').toString(),
+        (json['status'] ??
+                json['state'] ??
+                json['requestStatus'] ??
+                json['request_status'] ??
+                '')
+            .toString(),
       ),
       listingTitle: title,
       thumbnailUrl: (json['thumbnail'] ??
@@ -192,9 +197,25 @@ class MarketingRequestListModel {
       list = data;
     } else if (data is Map) {
       final Map<String, dynamic> map = Map<String, dynamic>.from(data);
-      final Object? raw =
-          map['requests'] ?? map['items'] ?? map['marketingRequests'];
-      list = raw is List ? raw : const <dynamic>[];
+      final Object? raw = map['requests'] ??
+          map['items'] ??
+          map['marketingRequests'] ??
+          map['marketing_requests'] ??
+          map['results'] ??
+          map['rows'] ??
+          map['data'];
+      if (raw is List) {
+        list = raw;
+      } else if (raw is Map) {
+        final Map<String, dynamic> nested = Map<String, dynamic>.from(raw);
+        final Object? nestedList = nested['requests'] ??
+            nested['items'] ??
+            nested['marketingRequests'] ??
+            nested['marketing_requests'];
+        list = nestedList is List ? nestedList : const <dynamic>[];
+      } else {
+        list = const <dynamic>[];
+      }
     } else {
       list = const <dynamic>[];
     }

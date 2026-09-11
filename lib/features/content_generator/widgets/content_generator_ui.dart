@@ -15,7 +15,6 @@ PreferredSizeWidget contentGeneratorAppBar(
 }) {
   return NewLaneAppBar(
     prefixIcon: Icons.arrow_back_ios_new,
-    prefixIconColor: AppColors.white,
     onPrefixPressed: onBack ?? () => context.pop(),
     title: title,
     titleFontSize: 16,

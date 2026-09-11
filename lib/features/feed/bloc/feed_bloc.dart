@@ -23,14 +23,16 @@ class FeedBloc extends Bloc<FeedEvent, FeedState> {
   final GetFeed _getFeed;
   final ToggleFeedLike _toggleFeedLike;
   String _filter = 'all';
+  final Map<String, List<FeedPost>> _cacheByFilter = <String, List<FeedPost>>{};
+  bool _loadInFlight = false;
 
   Future<void> _onStarted(FeedStarted event, Emitter<FeedState> emit) {
     _filter = event.filter;
-    return _load(emit);
+    return _load(emit, force: false);
   }
 
   Future<void> _onRefreshed(FeedRefreshed event, Emitter<FeedState> emit) {
-    return _load(emit);
+    return _load(emit, force: true);
   }
 
   Future<void> _onFilterChanged(
@@ -38,7 +40,21 @@ class FeedBloc extends Bloc<FeedEvent, FeedState> {
     Emitter<FeedState> emit,
   ) {
     _filter = event.filter;
-    return _load(emit);
+    final String cacheKey = _apiFilter(_filter);
+    final List<FeedPost>? cached = _cacheByFilter[cacheKey];
+    if (cached != null) {
+      emit(FeedLoaded(posts: cached, filter: _filter));
+      return Future<void>.value();
+    }
+    return _load(emit, force: false);
+  }
+
+  /// Category chips (listings / wins / events) are client-side; API uses `all`.
+  String _apiFilter(String uiFilter) {
+    return switch (uiFilter) {
+      'listings' || 'wins' || 'events' => 'all',
+      _ => uiFilter,
+    };
   }
 
   Future<void> _onLikeToggled(
@@ -107,27 +123,46 @@ class FeedBloc extends Bloc<FeedEvent, FeedState> {
     };
   }
 
-  Future<void> _load(Emitter<FeedState> emit) async {
-    final List<FeedPost> previous = _currentPosts();
-    emit(FeedLoading(previous: previous, filter: _filter));
-    AppLog.line('[BLOC] feed load filter=$_filter');
+  Future<void> _load(Emitter<FeedState> emit, {required bool force}) async {
+    if (_loadInFlight && !force) return;
 
-    final Result<List<FeedPost>> result = await _getFeed(
-      GetFeedParams(filter: _filter),
-    );
-    result.when(
-      ok: (List<FeedPost> posts) {
-        emit(FeedLoaded(posts: posts, filter: _filter));
-      },
-      err: (failure) {
-        emit(
-          FeedFailure(
-            failure.message,
-            previous: previous,
-            filter: _filter,
-          ),
-        );
-      },
-    );
+    final String cacheKey = _apiFilter(_filter);
+
+    if (!force) {
+      final List<FeedPost>? cached = _cacheByFilter[cacheKey];
+      if (cached != null) {
+        emit(FeedLoaded(posts: cached, filter: _filter));
+        return;
+      }
+    }
+
+    final List<FeedPost> previous =
+        _cacheByFilter[cacheKey] ?? _currentPosts();
+    _loadInFlight = true;
+    emit(FeedLoading(previous: previous, filter: _filter));
+    AppLog.line('[BLOC] feed load filter=$_filter api=$cacheKey force=$force');
+
+    try {
+      final Result<List<FeedPost>> result = await _getFeed(
+        GetFeedParams(filter: cacheKey),
+      );
+      result.when(
+        ok: (List<FeedPost> posts) {
+          _cacheByFilter[cacheKey] = posts;
+          emit(FeedLoaded(posts: posts, filter: _filter));
+        },
+        err: (failure) {
+          emit(
+            FeedFailure(
+              failure.message,
+              previous: previous,
+              filter: _filter,
+            ),
+          );
+        },
+      );
+    } finally {
+      _loadInFlight = false;
+    }
   }
 }

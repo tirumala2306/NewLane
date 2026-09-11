@@ -41,8 +41,6 @@ class MoreMockData {
   static const String officePhone = '(305) 555-0128';
   static const String officeEmail = 'brickell@newlane.com';
   static const int points = 1250;
-  static const String appVersion = 'Version 1.2.0';
-  static const String aboutVersion = 'Version 2.4.1 (Build 1024)';
   static const String supportPhone = '(305) 555-0199';
   static const String supportHours =
       'Monday - Friday 9:00 AM - 6:00 PM EST';
@@ -107,7 +105,6 @@ class MoreMockData {
       title: 'About NewLane',
       icon: Icons.info_outline,
       subtitle: 'App information and version',
-      trailingText: appVersion,
     ),
     MoreMenuItem(
       id: MoreMenuId.logout,

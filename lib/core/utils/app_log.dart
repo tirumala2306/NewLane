@@ -1,24 +1,34 @@
 import 'dart:convert';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:newlane/core/config/app_environment.dart';
 
-// Intentional: print() so logs show in stdout (not the blue debugPrint channel).
-// ignore_for_file: avoid_print
-
-/// Stdout logger (uses [print], not debugPrint — so Cursor/VS Code
-/// shows it in the normal console color, not the blue Debug channel).
+/// Production-safe logger. No-ops in release / production so tokens and
+/// credentials never appear in device logs.
 class AppLog {
   const AppLog._();
 
-  static const String _rule = '============================================================';
+  static const String _rule =
+      '============================================================';
+
+  static bool get _enabled {
+    if (kReleaseMode) return false;
+    if (AppEnvironment.type.isProduction) return false;
+    return true;
+  }
 
   /// Single line.
   static void line(String message) {
+    if (!_enabled) return;
     debugPrint(message);
   }
 
   /// Block with a title and key/value rows.
-  static void section(String title, [Map<String, Object?> fields = const <String, Object?>{}]) {
+  static void section(
+    String title, [
+    Map<String, Object?> fields = const <String, Object?>{},
+  ]) {
+    if (!_enabled) return;
     debugPrint(_rule);
     debugPrint('[$title]');
     for (final MapEntry<String, Object?> entry in fields.entries) {

@@ -6,12 +6,14 @@ class FeedPostModel {
     required this.id,
     required this.caption,
     required this.authorName,
+    this.authorId = 0,
     this.authorAvatar = '',
     this.officeLabel = '',
     this.postType = '',
     this.visibility = 'All',
     this.imageUrl = '',
     this.mediaUrls = const <String>[],
+    this.locationLabel = '',
     this.likesCount = 0,
     this.commentsCount = 0,
     this.likedByMe = false,
@@ -44,6 +46,13 @@ class FeedPostModel {
                   author['name'] ??
                   'Agent')
               .toString(),
+      authorId: _asInt(
+        json['authorId'] ??
+            json['author_id'] ??
+            json['userId'] ??
+            json['user_id'] ??
+            author['id'],
+      ),
       authorAvatar: resolveMediaUrl(
             (json['authorAvatar'] ??
                     author['avatar'] ??
@@ -52,13 +61,12 @@ class FeedPostModel {
                 .toString(),
           ) ??
           '',
-      officeLabel:
-          (json['officeName'] ??
-                  json['office'] ??
-                  author['officeName'] ??
-                  author['office'] ??
-                  '')
-              .toString(),
+      officeLabel: _asOfficeLabel(
+        json['officeName'] ??
+            json['office'] ??
+            author['officeName'] ??
+            author['office'],
+      ),
       postType: (json['postType'] ?? json['type'] ?? '').toString(),
       visibility: (json['visibility'] ?? json['shareTo'] ?? 'All').toString(),
       imageUrl: resolveMediaUrl(image) ?? '',
@@ -66,6 +74,12 @@ class FeedPostModel {
           .map((String u) => resolveMediaUrl(u) ?? u)
           .where((String u) => u.isNotEmpty)
           .toList(),
+      locationLabel: _asLocationLabel(
+        json['locationLabel'] ??
+            json['location'] ??
+            json['address'] ??
+            json['place'],
+      ),
       likesCount: _asInt(
         json['likesCount'] ?? json['likes'] ?? json['likeCount'],
       ),
@@ -85,12 +99,14 @@ class FeedPostModel {
   final int id;
   final String caption;
   final String authorName;
+  final int authorId;
   final String authorAvatar;
   final String officeLabel;
   final String postType;
   final String visibility;
   final String imageUrl;
   final List<String> mediaUrls;
+  final String locationLabel;
   final int likesCount;
   final int commentsCount;
   final bool likedByMe;
@@ -101,12 +117,14 @@ class FeedPostModel {
       id: id,
       caption: caption,
       authorName: authorName,
+      authorId: authorId,
       authorAvatar: authorAvatar,
       officeLabel: officeLabel,
       postType: postType,
       visibility: visibility,
       imageUrl: imageUrl,
       mediaUrls: mediaUrls,
+      locationLabel: locationLabel,
       likesCount: likesCount,
       commentsCount: commentsCount,
       likedByMe: likedByMe,
@@ -118,6 +136,43 @@ class FeedPostModel {
     if (value is int) return value;
     if (value is num) return value.toInt();
     return int.tryParse('$value'.replaceAll(RegExp(r'[^0-9-]'), '')) ?? 0;
+  }
+
+  /// API sometimes returns office as `{id, name}` — never use Map.toString().
+  static String _asOfficeLabel(dynamic value) {
+    if (value == null) return '';
+    if (value is String) {
+      final String t = value.trim();
+      if (t.isEmpty || t.startsWith('{')) return '';
+      return t;
+    }
+    if (value is Map) {
+      final Map<String, dynamic> map = Map<String, dynamic>.from(value);
+      return (map['name'] ??
+              map['officeName'] ??
+              map['title'] ??
+              map['label'] ??
+              '')
+          .toString()
+          .trim();
+    }
+    return '';
+  }
+
+  static String _asLocationLabel(dynamic value) {
+    if (value == null) return '';
+    if (value is String) return value.trim();
+    if (value is Map) {
+      final Map<String, dynamic> map = Map<String, dynamic>.from(value);
+      return (map['address'] ??
+              map['label'] ??
+              map['name'] ??
+              map['formatted'] ??
+              '')
+          .toString()
+          .trim();
+    }
+    return '';
   }
 
   static DateTime? _asDate(dynamic value) {

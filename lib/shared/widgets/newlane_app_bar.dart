@@ -136,7 +136,7 @@ class NewLaneAppBar extends StatelessWidget implements PreferredSizeWidget {
       icon: Icon(
         prefixIcon,
         size: iconSize,
-        color: prefixIconColor ?? AppColors.white,
+        color: prefixIconColor ?? AppColors.primaryButtonBg,
       ),
     );
   }
@@ -150,7 +150,7 @@ class NewLaneAppBar extends StatelessWidget implements PreferredSizeWidget {
       icon: Icon(
         suffixIcon,
         size: iconSize,
-        color: suffixIconColor ?? AppColors.white,
+        color: suffixIconColor ?? AppColors.primaryButtonBg,
       ),
     );
   }

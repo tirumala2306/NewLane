@@ -13,6 +13,7 @@ import 'package:newlane/core/utils/screen_utils.dart';
 import 'package:newlane/features/create_post/data/mock/create_post_mock_data.dart';
 import 'package:newlane/features/create_post/domain/entities/office.dart';
 import 'package:newlane/features/create_post/domain/entities/post_location.dart';
+import 'package:newlane/features/directory/domain/entities/directory_agent.dart';
 import 'package:newlane/features/feed/domain/entities/feed_post.dart';
 import 'package:newlane/features/feed/domain/usecases/feed_usecases.dart';
 import 'package:newlane/features/home/widgets/home_card.dart';
@@ -32,6 +33,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
   Office? _selectedOffice;
   PostLocation? _selectedLocation;
+  List<DirectoryAgent> _taggedPeople = <DirectoryAgent>[];
   CreatePostType _postType = CreatePostType.listing;
   CreateShareTo _shareTo = CreateShareTo.all;
   bool _postTypeExpanded = true;
@@ -96,6 +98,17 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     }
   }
 
+  Future<void> _openTagPeople() async {
+    final Object? result = await context.push<Object?>(
+      AppRoutes.tagPeople,
+      extra: List<DirectoryAgent>.from(_taggedPeople),
+    );
+    if (!mounted || result == null) return;
+    if (result is List<DirectoryAgent>) {
+      setState(() => _taggedPeople = result);
+    }
+  }
+
   Future<void> _openAddLocation() async {
     final Object? result = await context.push<Object?>(
       AppRoutes.addLocation,
@@ -119,13 +132,41 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     }
 
     setState(() => _submitting = true);
+
+    String composedCaption = caption;
+    final String location = (_selectedLocation?.address.trim().isNotEmpty == true
+            ? _selectedLocation!.address.trim()
+            : _selectedLocation?.label.trim()) ??
+        '';
+    // Ensure Listing posts carry address for Active Listings / marketing picker.
+    if (_postType == CreatePostType.listing &&
+        location.isNotEmpty &&
+        !composedCaption.toLowerCase().contains(location.toLowerCase())) {
+      composedCaption = '$composedCaption\n$location';
+    }
+    if (_taggedPeople.isNotEmpty) {
+      final String tags = _taggedPeople
+          .map((DirectoryAgent a) {
+            final String name = a.fullName.trim();
+            return name.isEmpty ? null : '@$name';
+          })
+          .whereType<String>()
+          .join(' ');
+      if (tags.isNotEmpty && !composedCaption.contains(tags)) {
+        composedCaption = '$composedCaption\n$tags';
+      }
+    }
+
     final Result<FeedPost> result =
         await InjectionContainer.instance.createFeedPost(
       CreateFeedPostParams(
-        caption: caption,
+        caption: composedCaption,
         postType: _postTypeLabel,
         visibility: _shareToLabel,
         mediaPaths: _media.map((XFile f) => f.path).toList(),
+        locationLabel: location,
+        taggedUserIds: _taggedPeople.map((DirectoryAgent a) => a.id).toList(),
+        officeId: _selectedOffice?.id,
       ),
     );
     if (!mounted) return;
@@ -416,14 +457,13 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           _TagRow(
             icon: Icons.people_outline,
             title: 'Tag People',
-            subtitle: 'Add team members or agents',
-            onTap: () {
-              AppSnackBar.showInfo(
-                context,
-                title: 'Coming Soon',
-                message: 'Tag people will be available shortly.',
-              );
-            },
+            subtitle: _taggedPeople.isEmpty
+                ? 'Add team members or agents'
+                : _taggedPeople
+                    .map((DirectoryAgent a) =>
+                        a.fullName.trim().isEmpty ? 'Agent' : a.fullName.trim())
+                    .join(', '),
+            onTap: _openTagPeople,
           ),
           Divider(height: 1, color: AppColors.divider),
           _TagRow(

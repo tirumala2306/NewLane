@@ -14,75 +14,45 @@ class SupportHeroCard extends StatelessWidget {
 
   final VoidCallback? onChatTap;
 
-  static const Color _cardBg = Color(0xFF010204);
-  static const Color _cardBorder = Color(0x1ABD9037);
-
   @override
   Widget build(BuildContext context) {
-    final double height = ScreenUtils.h(147);
-    final double imageWidth = ScreenUtils.w(238);
-    final double corner = ScreenUtils.r(8);
+    final double height = ScreenUtils.h(168);
+    final BorderRadius radius = BorderRadius.circular(ScreenUtils.r(10));
 
-    return Container(
-      width: double.infinity,
-      height: height,
-      decoration: BoxDecoration(
-        color: _cardBg,
-        borderRadius: BorderRadius.circular(corner),
-        border: Border.all(color: _cardBorder, width: 1),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Stack(
-        children: <Widget>[
-          // Right-side image only.
-          Positioned(
-            top: 0,
-            right: 0,
-            bottom: 0,
-            width: imageWidth,
-            child: ClipRRect(
-              borderRadius: BorderRadius.only(
-                topRight: Radius.circular(corner),
-                bottomRight: Radius.circular(corner),
-              ),
-              child: Stack(
-                fit: StackFit.expand,
-                children: <Widget>[
-                  const AppSvg(
-                    AssetConstants.profileBg,
-                    fit: BoxFit.cover,
-                  ),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Container(
-                      width: ScreenUtils.w(48),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.centerLeft,
-                          end: Alignment.centerRight,
-                          colors: <Color>[
-                            _cardBg,
-                            _cardBg.withValues(alpha: 0),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+    return ClipRRect(
+      borderRadius: radius,
+      child: SizedBox(
+        width: double.infinity,
+        height: height,
+        child: Stack(
+          fit: StackFit.expand,
+          children: <Widget>[
+            const AppSvg(
+              AssetConstants.profileBg,
+              fit: BoxFit.cover,
+              alignment: Alignment.center,
+            ),
+            // Scrim so text stays readable over the skyline.
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: <Color>[
+                    AppColors.black.withValues(alpha: 0.82),
+                    AppColors.black.withValues(alpha: 0.45),
+                    AppColors.black.withValues(alpha: 0.2),
+                  ],
+                  stops: const <double>[0, 0.55, 1],
+                ),
               ),
             ),
-          ),
-          // Left content over dark area.
-          Positioned(
-            left: 0,
-            top: 0,
-            bottom: 0,
-            // width: ScreenUtils.w(200),
-            child: Padding(
-              padding: EdgeInsets.only(
-                left: ScreenUtils.w(16),
-                top: ScreenUtils.h(24),
-                bottom: ScreenUtils.h(12 ),
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                ScreenUtils.w(16),
+                ScreenUtils.h(18),
+                ScreenUtils.w(16),
+                ScreenUtils.h(14),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -91,29 +61,29 @@ class SupportHeroCard extends StatelessWidget {
                     'How can we help you?',
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: AppTypography.semiBold(fontSize: 14, height: 1.2),
+                    style: AppTypography.semiBold(fontSize: 16, height: 1.2),
                   ),
-                  SizedBox(height: ScreenUtils.h(4)),
+                  SizedBox(height: ScreenUtils.h(6)),
                   SizedBox(
-                    width: ScreenUtils.w(150),
+                    width: ScreenUtils.w(210),
                     child: Text(
                       'Our support team is here to assist you with any questions or issues.',
-                      maxLines: 4,
+                      maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                       style: AppTypography.regular(
-                        fontSize: 10,
+                        fontSize: 11,
                         height: 1.35,
                         color: AppColors.white.withValues(alpha: 0.85),
                       ),
                     ),
                   ),
-                  SizedBox(height: ScreenUtils.h(16)),
+                  const Spacer(),
                   _OutlineChatButton(onTap: onChatTap),
                 ],
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -133,8 +103,8 @@ class _OutlineChatButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(ScreenUtils.r(8)),
         child: Container(
           padding: EdgeInsets.symmetric(
-            horizontal: ScreenUtils.w(10),
-            vertical: ScreenUtils.h(6),
+            horizontal: ScreenUtils.w(12),
+            vertical: ScreenUtils.h(8),
           ),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(ScreenUtils.r(8)),
@@ -145,19 +115,15 @@ class _OutlineChatButton extends StatelessWidget {
             children: <Widget>[
               Icon(
                 CupertinoIcons.chat_bubble_text,
-                size: ScreenUtils.sp(12),
+                size: ScreenUtils.sp(14),
                 color: AppColors.primaryButtonBg,
               ),
-              SizedBox(width: ScreenUtils.w(4)),
-              Flexible(
-                child: Text(
-                  'Chat with Support',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTypography.semiBold(
-                    fontSize: 10,
-                    color: AppColors.primaryButtonBg,
-                  ),
+              SizedBox(width: ScreenUtils.w(6)),
+              Text(
+                'Chat with Support',
+                style: AppTypography.semiBold(
+                  fontSize: 11,
+                  color: AppColors.primaryButtonBg,
                 ),
               ),
             ],

@@ -23,5 +23,9 @@ abstract class FeedRepository {
     required String postType,
     required String visibility,
     List<String> mediaPaths = const <String>[],
+    String locationLabel = '',
+    String price = '',
+    List<int> taggedUserIds = const <int>[],
+    int? officeId,
   });
 }

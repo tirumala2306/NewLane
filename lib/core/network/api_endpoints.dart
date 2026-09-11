@@ -63,4 +63,14 @@ class ApiEndpoints {
   static const String chatAnnouncements = '/api/chat/announcements';
   static const String chatDms = '/api/chat/dms';
   static const String chatSeedDemo = '/api/chat/seed-demo';
+  static const String chatNotifyMessage = '/api/chat/notify-message';
+
+  /// FCM device token registration (Phase 3 backend).
+  static const String devices = '/api/devices';
+  static const String notificationPrefs = '/api/agents/me/notification-prefs';
+  static const String notificationsMine = '/api/notifications/mine';
+
+  static const String training = '/api/training';
+
+  static String trainingById(int id) => '$training/$id';
 }

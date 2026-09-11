@@ -58,11 +58,7 @@ class ProfileMockData {
   static const bool isVerified = true;
 
   static const List<ProfileStat> stats = <ProfileStat>[
-    ProfileStat(
-      icon: Icons.home_outlined,
-      value: '48',
-      label: 'Active Listings',
-    ),
+    // Active Listings stat hidden for now.
     ProfileStat(
       icon: Icons.handshake_outlined,
       value: '124',

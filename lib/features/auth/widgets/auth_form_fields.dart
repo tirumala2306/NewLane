@@ -23,6 +23,7 @@ class AuthInput extends StatelessWidget {
     this.textCapitalization = TextCapitalization.none,
     this.autocorrect = true,
     this.enableSuggestions = true,
+    this.readOnly = false,
   });
 
   final TextEditingController? controller;
@@ -40,6 +41,7 @@ class AuthInput extends StatelessWidget {
   final TextCapitalization textCapitalization;
   final bool autocorrect;
   final bool enableSuggestions;
+  final bool readOnly;
 
   @override
   Widget build(BuildContext context) {
@@ -59,6 +61,7 @@ class AuthInput extends StatelessWidget {
       textCapitalization: textCapitalization,
       autocorrect: autocorrect,
       enableSuggestions: enableSuggestions,
+      readOnly: readOnly,
       isExpanded: true,
       borderColor: const Color(0xFFEFEFEF),
       focusedBorderColor: AppColors.primaryButtonBg,
@@ -412,25 +415,40 @@ class _AuthSpecialtiesFieldState extends State<AuthSpecialtiesField> {
               final bool isSelected = widget.selected.any(
                 (String s) => s.toLowerCase() == option.toLowerCase(),
               );
+              final Color labelColor =
+                  isSelected ? AppColors.black : AppColors.white;
               return FilterChip(
                 label: Text(
                   option,
                   style: AppTypography.medium(
                     fontSize: 11,
-                    color: isSelected
-                        ? AppColors.black
-                        : AppColors.white.withValues(alpha: 0.85),
+                    color: labelColor,
                   ),
+                ),
+                labelStyle: AppTypography.medium(
+                  fontSize: 11,
+                  color: labelColor,
                 ),
                 selected: isSelected,
                 onSelected: (_) => _toggleSuggestion(option),
-                selectedColor: AppColors.primaryButtonBg,
-                backgroundColor: AppColors.white.withValues(alpha: 0.05),
-                checkmarkColor: AppColors.black,
+                showCheckmark: false,
+                color: WidgetStateProperty.resolveWith<Color>((
+                  Set<WidgetState> states,
+                ) {
+                  if (states.contains(WidgetState.selected)) {
+                    return AppColors.primaryButtonBg;
+                  }
+                  return const Color(0xFF1C1C1E);
+                }),
+                surfaceTintColor: Colors.transparent,
+                shadowColor: Colors.transparent,
+                selectedShadowColor: Colors.transparent,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                visualDensity: VisualDensity.compact,
                 side: BorderSide(
                   color: isSelected
                       ? AppColors.primaryButtonBg
-                      : const Color(0xFFEFEFEF).withValues(alpha: 0.5),
+                      : AppColors.white.withValues(alpha: 0.4),
                 ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(ScreenUtils.r(20)),

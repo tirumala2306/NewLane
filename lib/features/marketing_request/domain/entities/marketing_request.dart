@@ -40,16 +40,25 @@ enum MarketingRequestStatus {
   bool get isActive => this != MarketingRequestStatus.completed;
 
   static MarketingRequestStatus fromRaw(String? raw) {
-    final String value = (raw ?? '').trim().toLowerCase().replaceAll('_', ' ');
+    final String value = (raw ?? '')
+        .trim()
+        .toLowerCase()
+        .replaceAll('-', ' ')
+        .replaceAll('_', ' ');
     if (value.contains('complete') ||
         value.contains('done') ||
-        value.contains('approved')) {
+        value.contains('approved') ||
+        value.contains('closed') ||
+        value.contains('resolved') ||
+        value.contains('finish')) {
       return MarketingRequestStatus.completed;
     }
-    if (value.contains('progress') || value.contains('working')) {
+    if (value.contains('progress') ||
+        value.contains('working') ||
+        value == 'processing') {
       return MarketingRequestStatus.inProgress;
     }
-    // submitted / pending / pending review / review
+    // submitted / pending / pending review / review / new
     return MarketingRequestStatus.submitted;
   }
 }

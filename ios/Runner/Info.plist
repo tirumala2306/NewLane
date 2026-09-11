@@ -28,11 +28,10 @@
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
+	<!-- Phone: portrait only (HIG). iPad keeps multi-orientation. -->
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
@@ -43,10 +42,11 @@
 	</array>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<!-- ATS: HTTPS only. Do not allow arbitrary loads for App Store. -->
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
-		<true/>
+		<false/>
 	</dict>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>NEWLANE needs photo access so you can set your profile picture and add photos to posts.</string>
@@ -56,6 +56,10 @@
 	<string>NEWLANE needs your location to tag where your post was created.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -73,6 +77,8 @@
 	<array>
 		<string>tel</string>
 		<string>mailto</string>
+		<string>https</string>
+		<string>http</string>
 	</array>
 </dict>
 </plist>

@@ -21,22 +21,28 @@ class TrainingHubCard extends StatelessWidget {
     final BorderRadius radius = BorderRadius.circular(ScreenUtils.r(8));
     final double resolvedHeight = height ?? ScreenUtils.h(63);
 
+    final Widget body = Container(
+      width: double.infinity,
+      height: resolvedHeight,
+      padding: EdgeInsets.all(ScreenUtils.w(16)),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: radius,
+        border: Border.all(color: border),
+      ),
+      child: child,
+    );
+
+    // Only wrap in InkWell when tappable — otherwise nested View/Download
+    // buttons lose the gesture (felt like "tap = download only").
+    if (onTap == null) return body;
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
         borderRadius: radius,
-        child: Container(
-          width: double.infinity,
-          height: resolvedHeight,
-          padding: EdgeInsets.all(ScreenUtils.w(16)),
-          decoration: BoxDecoration(
-            color: background,
-            borderRadius: radius,
-            border: Border.all(color: border),
-          ),
-          child: child,
-        ),
+        child: body,
       ),
     );
   }

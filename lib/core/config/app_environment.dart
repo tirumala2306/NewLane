@@ -9,7 +9,7 @@ class AppEnvironment {
 
   static const String _environmentName = String.fromEnvironment(
     'APP_ENV',
-    defaultValue: 'development',
+    defaultValue: '',
   );
   static const String _compileTimeBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
@@ -22,11 +22,14 @@ class AppEnvironment {
 
   static String _resolvedBaseUrl = _compileTimeBaseUrl;
   static bool _initialized = false;
+  static EnvironmentType _resolvedType = EnvironmentType.development;
 
-  static EnvironmentType get type => EnvironmentType.fromName(_environmentName);
+  static EnvironmentType get type => _resolvedType;
   static String get name => type.name;
   static String get baseUrl => _resolvedBaseUrl;
   static bool get showEnvironmentBanner => !type.isProduction;
+  static bool get isNetworkLoggingEnabled =>
+      enableNetworkLogs && !kReleaseMode && !type.isProduction;
 
   static Future<void> initialize() async {
     if (_initialized) {
@@ -34,13 +37,27 @@ class AppEnvironment {
     }
 
     _initialized = true;
+    _resolvedType = _resolveType();
 
     if (_compileTimeBaseUrl.isNotEmpty) {
+      _resolvedBaseUrl = _compileTimeBaseUrl;
       return;
     }
 
     // Release IPA also needs a URL if dart-defines were omitted.
     await _loadFallbackFromAsset();
+  }
+
+  /// Release builds without `--dart-define APP_ENV` → production.
+  /// Debug/profile without define → development.
+  static EnvironmentType _resolveType() {
+    final String raw = _environmentName.trim();
+    if (raw.isNotEmpty) {
+      return EnvironmentType.fromName(raw);
+    }
+    return kReleaseMode
+        ? EnvironmentType.production
+        : EnvironmentType.development;
   }
 
   static Future<void> _loadFallbackFromAsset() async {
@@ -58,7 +75,11 @@ class AppEnvironment {
           jsonDecode(rawJson) as Map<String, dynamic>;
       _resolvedBaseUrl = data['API_BASE_URL']?.toString() ?? '';
     } on FlutterError {
-      // Last resort: try development config so the app can still boot.
+      // Production must not silently fall back to development config.
+      if (type.isProduction) {
+        _resolvedBaseUrl = '';
+        return;
+      }
       if (fileName != 'development.json') {
         try {
           final String rawJson = await rootBundle.loadString(
@@ -82,8 +103,8 @@ class AppEnvironment {
     if (_resolvedBaseUrl.trim().isEmpty) {
       throw StateError(
         'API_BASE_URL is not configured. '
-        'Pass --dart-define-from-file=config/env/development.json or set '
-        'API_BASE_URL manually.',
+        'Pass --dart-define-from-file=config/env/production.json '
+        '(or development.json for local).',
       );
     }
 
@@ -91,7 +112,13 @@ class AppEnvironment {
       throw StateError('API_BASE_URL is invalid: "$_resolvedBaseUrl"');
     }
 
-    if (uri.scheme != 'https' && uri.scheme != 'http') {
+    if (type.isProduction || kReleaseMode) {
+      if (uri.scheme != 'https') {
+        throw StateError(
+          'Production builds require HTTPS API_BASE_URL. Got: "$_resolvedBaseUrl"',
+        );
+      }
+    } else if (uri.scheme != 'https' && uri.scheme != 'http') {
       throw StateError(
         'API_BASE_URL must use http or https: "$_resolvedBaseUrl"',
       );

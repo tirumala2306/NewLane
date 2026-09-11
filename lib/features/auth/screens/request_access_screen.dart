@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:newlane/core/constants/legal_urls.dart';
 import 'package:newlane/core/router/app_routes.dart';
 import 'package:newlane/core/utils/screen_utils.dart';
 import 'package:newlane/features/auth/bloc/request_access/request_access_bloc.dart';
@@ -10,8 +11,8 @@ import 'package:newlane/features/auth/widgets/auth_header.dart';
 import 'package:newlane/features/auth/widgets/auth_scaffold.dart';
 import 'package:newlane/features/auth/widgets/request_access_form.dart';
 import 'package:newlane/features/auth/widgets/request_submitted_dialog.dart';
-import 'package:newlane/features/more/data/more_info_content.dart';
 import 'package:newlane/shared/widgets/app_snackbar.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// Collects identity details and submits an access request via BLoC.
 class RequestAccessScreen extends StatefulWidget {
@@ -35,6 +36,22 @@ class _RequestAccessScreenState extends State<RequestAccessScreen> {
     _officeController.dispose();
     _phoneController.dispose();
     super.dispose();
+  }
+
+  Future<void> _openLegalUrl(String url) async {
+    final Uri? uri = Uri.tryParse(url);
+    if (uri == null) return;
+    final bool opened = await launchUrl(
+      uri,
+      mode: LaunchMode.externalApplication,
+    );
+    if (!opened && mounted) {
+      AppSnackBar.showError(
+        context,
+        title: 'Unable to open link',
+        message: 'Please try again or visit $url in your browser.',
+      );
+    }
   }
 
   void _onRequestAccess() {
@@ -110,14 +127,8 @@ class _RequestAccessScreenState extends State<RequestAccessScreen> {
                 onAcceptedTermsChanged: (bool value) {
                   setState(() => _acceptedTerms = value);
                 },
-                onTermsTap: () => context.push(
-                  AppRoutes.moreInfo,
-                  extra: MoreInfoContent.terms,
-                ),
-                onPrivacyTap: () => context.push(
-                  AppRoutes.moreInfo,
-                  extra: MoreInfoContent.privacy,
-                ),
+                onTermsTap: () => _openLegalUrl(LegalUrls.terms),
+                onPrivacyTap: () => _openLegalUrl(LegalUrls.privacy),
                 isLoading: isLoading,
                 onRequestAccess: _onRequestAccess,
               ),

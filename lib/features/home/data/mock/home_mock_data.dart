@@ -9,6 +9,8 @@ class HomeAnnouncement {
     this.thumbnailUrl,
     this.timeLabel,
     this.showUnreadDot = false,
+    this.id,
+    this.kind,
   });
 
   final String title;
@@ -17,6 +19,8 @@ class HomeAnnouncement {
   final String? thumbnailUrl;
   final String? timeLabel;
   final bool showUnreadDot;
+  final int? id;
+  final String? kind;
 }
 
 class HomeQuickAction {

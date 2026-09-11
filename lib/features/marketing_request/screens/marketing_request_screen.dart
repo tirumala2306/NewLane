@@ -4,17 +4,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:newlane/core/di/injection_container.dart';
+import 'package:newlane/core/errors/result.dart';
 import 'package:newlane/core/router/app_routes.dart';
 import 'package:newlane/core/theme/app_colors.dart';
 import 'package:newlane/core/theme/app_typography.dart';
 import 'package:newlane/core/utils/screen_utils.dart';
-import 'package:newlane/features/home/data/mock/home_mock_data.dart';
+import 'package:newlane/features/auth/domain/entities/agent_profile.dart';
+import 'package:newlane/features/listings/domain/entities/active_listing.dart';
 import 'package:newlane/features/marketing_request/bloc/create/marketing_request_bloc.dart';
 import 'package:newlane/features/marketing_request/bloc/create/marketing_request_event.dart';
 import 'package:newlane/features/marketing_request/bloc/create/marketing_request_state.dart';
-import 'package:newlane/features/marketing_request/data/mock/marketing_listings_mock.dart';
 import 'package:newlane/features/marketing_request/domain/entities/marketing_request.dart';
 import 'package:newlane/features/marketing_request/widgets/marketing_stepper.dart';
+import 'package:newlane/features/profile/bloc/profile_bloc.dart';
+import 'package:newlane/features/profile/bloc/profile_state.dart';
 import 'package:newlane/shared/widgets/app_snackbar.dart';
 import 'package:newlane/shared/widgets/custom_text_field.dart';
 import 'package:newlane/shared/widgets/newlane_app_bar.dart';
@@ -32,6 +36,42 @@ class _MarketingRequestScreenState extends State<MarketingRequestScreen> {
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _priceController = TextEditingController();
   final TextEditingController _notesController = TextEditingController();
+  List<MarketingListing> _myListings = <MarketingListing>[];
+  bool _loadingListings = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMyListings();
+  }
+
+  Future<void> _loadMyListings() async {
+    setState(() => _loadingListings = true);
+    final ProfileState profileState = context.read<ProfileBloc>().state;
+    final AgentProfile? profile =
+        profileState is ProfileLoaded ? profileState.profile : null;
+    final Result<List<ActiveListing>> result =
+        await InjectionContainer.instance.fetchMyActiveListings(
+      currentUserId: profile?.id ?? 0,
+      currentUserName: profile?.fullName ?? '',
+    );
+    if (!mounted) return;
+    result.when(
+      ok: (List<ActiveListing> items) {
+        setState(() {
+          _myListings =
+              items.map((ActiveListing e) => e.toMarketingListing()).toList();
+          _loadingListings = false;
+        });
+      },
+      err: (_) {
+        setState(() {
+          _myListings = <MarketingListing>[];
+          _loadingListings = false;
+        });
+      },
+    );
+  }
 
   @override
   void dispose() {
@@ -127,6 +167,21 @@ class _MarketingRequestScreenState extends State<MarketingRequestScreen> {
   }
 
   Future<void> _pickListing() async {
+    if (_loadingListings) {
+      await _loadMyListings();
+    }
+    if (!mounted) return;
+
+    if (_myListings.isEmpty) {
+      AppSnackBar.showInfo(
+        context,
+        title: 'No listings yet',
+        message:
+            'Create a post with type Listing first — those appear here to select.',
+      );
+      return;
+    }
+
     final MarketingListing? selected =
         await showModalBottomSheet<MarketingListing>(
           context: context,
@@ -154,38 +209,64 @@ class _MarketingRequestScreenState extends State<MarketingRequestScreen> {
                       style: AppTypography.semiBold(fontSize: 16),
                     ),
                     SizedBox(height: ScreenUtils.h(12)),
-                    ...MarketingListingsMock.listings.map(
-                      (MarketingListing listing) => ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: ClipRRect(
-                          borderRadius: BorderRadius.circular(ScreenUtils.r(6)),
-                          child: Image.network(
-                            listing.imageUrl,
-                            width: ScreenUtils.w(48),
-                            height: ScreenUtils.w(48),
-                            fit: BoxFit.cover,
-                            errorBuilder:
-                                (BuildContext context, Object error, StackTrace? stack) {
-                              return Container(
-                                width: ScreenUtils.w(48),
-                                height: ScreenUtils.w(48),
-                                color: AppColors.black,
-                              );
-                            },
-                          ),
-                        ),
-                        title: Text(
-                          listing.address,
-                          style: AppTypography.medium(fontSize: 13),
-                        ),
-                        subtitle: Text(
-                          '${listing.priceLabel} · ${listing.title}',
-                          style: AppTypography.regular(
-                            fontSize: 11,
-                            color: AppColors.mutedGrey,
-                          ),
-                        ),
-                        onTap: () => Navigator.pop(context, listing),
+                    Flexible(
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: _myListings.length,
+                        itemBuilder: (BuildContext context, int index) {
+                          final MarketingListing listing = _myListings[index];
+                          return ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: ClipRRect(
+                              borderRadius:
+                                  BorderRadius.circular(ScreenUtils.r(6)),
+                              child: listing.imageUrl.isEmpty
+                                  ? Container(
+                                      width: ScreenUtils.w(48),
+                                      height: ScreenUtils.w(48),
+                                      color: AppColors.black,
+                                      child: Icon(
+                                        Icons.home_outlined,
+                                        color: AppColors.primaryButtonBg,
+                                        size: ScreenUtils.sp(20),
+                                      ),
+                                    )
+                                  : Image.network(
+                                      listing.imageUrl,
+                                      width: ScreenUtils.w(48),
+                                      height: ScreenUtils.w(48),
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (
+                                        BuildContext context,
+                                        Object error,
+                                        StackTrace? stack,
+                                      ) {
+                                        return Container(
+                                          width: ScreenUtils.w(48),
+                                          height: ScreenUtils.w(48),
+                                          color: AppColors.black,
+                                        );
+                                      },
+                                    ),
+                            ),
+                            title: Text(
+                              listing.address,
+                              style: AppTypography.medium(fontSize: 13),
+                            ),
+                            subtitle: Text(
+                              [
+                                if (listing.priceLabel.isNotEmpty)
+                                  listing.priceLabel,
+                                listing.title,
+                              ].join(' · '),
+                              style: AppTypography.regular(
+                                fontSize: 11,
+                                color: AppColors.mutedGrey,
+                              ),
+                            ),
+                            onTap: () => Navigator.pop(context, listing),
+                          );
+                        },
                       ),
                     ),
                   ],
@@ -202,7 +283,12 @@ class _MarketingRequestScreenState extends State<MarketingRequestScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final String officeName = HomeMockData.officeName.toUpperCase();
+    final ProfileState profileState = context.watch<ProfileBloc>().state;
+    final String officeName = switch (profileState) {
+      ProfileLoaded(:final profile) when profile.officeName.trim().isNotEmpty =>
+        profile.officeName.trim().toUpperCase(),
+      _ => '',
+    };
 
     return BlocConsumer<MarketingRequestBloc, MarketingRequestState>(
       listenWhen: (MarketingRequestState previous, MarketingRequestState current) {
@@ -237,7 +323,6 @@ class _MarketingRequestScreenState extends State<MarketingRequestScreen> {
           backgroundColor: AppColors.black,
           appBar: NewLaneAppBar(
             prefixIcon: Icons.arrow_back_ios_new,
-            prefixIconColor: AppColors.white,
             onPrefixPressed: () {
               if (state.step > 0) {
                 context.read<MarketingRequestBloc>().add(
@@ -249,7 +334,7 @@ class _MarketingRequestScreenState extends State<MarketingRequestScreen> {
             },
             title: 'MARKETING REQUEST',
             titleFontSize: 16,
-            description: officeName,
+            description: officeName.isEmpty ? null : officeName,
             descriptionFontSize: 10,
             height: ScreenUtils.h(56),
           ),

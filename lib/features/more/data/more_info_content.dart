@@ -116,7 +116,7 @@ class MoreInfoContent {
         paragraphs: <String>[
           'Our mission is to provide agents with the tools, communication, and resources they need to grow their business while staying connected with the New Lane community.',
         ],
-        footer: 'Version: 1.0.0\n\nSupport: gabrielr@marsblue.co',
+        footer: 'Support: gabrielr@marsblue.co',
       ),
     ],
   );

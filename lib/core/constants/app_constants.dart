@@ -19,4 +19,15 @@ class AppConstants {
 
   /// Set once when onboarding is finished/skipped. Survives logout.
   static const String onboardingCompletedKey = 'onboarding_completed';
+
+  /// Last registered FCM device token (local cache).
+  static const String fcmTokenKey = 'fcm_device_token';
+
+  /// Push preference toggles (local until backend prefs API is live).
+  static const String pushEnabledKey = 'push_enabled';
+  static const String pushMessagesKey = 'push_messages';
+  static const String pushTicketsKey = 'push_tickets';
+  static const String pushAnnouncementsKey = 'push_announcements';
+  static const String pushMarketingKey = 'push_marketing';
+  static const String pushSystemKey = 'push_system';
 }

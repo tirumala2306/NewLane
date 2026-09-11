@@ -108,6 +108,10 @@ class CreateFeedPost
       postType: params.postType,
       visibility: params.visibility,
       mediaPaths: params.mediaPaths,
+      locationLabel: params.locationLabel,
+      price: params.price,
+      taggedUserIds: params.taggedUserIds,
+      officeId: params.officeId,
     );
   }
 }
@@ -118,14 +122,30 @@ class CreateFeedPostParams extends Equatable {
     required this.postType,
     required this.visibility,
     this.mediaPaths = const <String>[],
+    this.locationLabel = '',
+    this.price = '',
+    this.taggedUserIds = const <int>[],
+    this.officeId,
   });
 
   final String caption;
   final String postType;
   final String visibility;
   final List<String> mediaPaths;
+  final String locationLabel;
+  final String price;
+  final List<int> taggedUserIds;
+  final int? officeId;
 
   @override
-  List<Object?> get props =>
-      <Object?>[caption, postType, visibility, mediaPaths];
+  List<Object?> get props => <Object?>[
+        caption,
+        postType,
+        visibility,
+        mediaPaths,
+        locationLabel,
+        price,
+        taggedUserIds,
+        officeId,
+      ];
 }

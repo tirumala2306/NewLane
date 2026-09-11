@@ -3,11 +3,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:newlane/core/config/app_environment.dart';
 import 'package:newlane/core/constants/asset_constants.dart';
+import 'package:newlane/core/di/injection_container.dart';
+import 'package:newlane/core/errors/result.dart';
 import 'package:newlane/core/router/app_routes.dart';
 import 'package:newlane/core/theme/app_colors.dart';
 import 'package:newlane/core/utils/phone_launcher.dart';
 import 'package:newlane/core/utils/screen_utils.dart';
 import 'package:newlane/features/auth/domain/entities/agent_profile.dart';
+import 'package:newlane/features/listings/domain/entities/active_listing.dart';
 import 'package:newlane/features/profile/bloc/profile_bloc.dart';
 import 'package:newlane/features/profile/bloc/profile_state.dart';
 import 'package:newlane/features/profile/data/mock/profile_mock_data.dart';
@@ -17,10 +20,21 @@ import 'package:newlane/features/profile/widgets/profile_hero_header.dart';
 import 'package:newlane/features/profile/widgets/profile_listings_section.dart';
 import 'package:newlane/features/profile/widgets/profile_specialties_card.dart';
 import 'package:newlane/features/profile/widgets/profile_stats_row.dart';
+import 'package:newlane/shared/widgets/app_skeleton.dart';
 import 'package:newlane/shared/widgets/app_snackbar.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  List<ActiveListing> _listings = <ActiveListing>[];
+  bool _loadingListings = false;
+  int? _loadedForUserId;
+  bool _listingsInFlight = false;
 
   String? _resolveAvatarUrl(String raw) {
     final String value = raw.trim();
@@ -84,6 +98,62 @@ class ProfileScreen extends StatelessWidget {
     }
   }
 
+  Future<void> _loadListings(AgentProfile profile) async {
+    if (profile.id <= 0) return;
+    // Already finished for this user.
+    if (_loadedForUserId == profile.id && !_loadingListings && !_listingsInFlight) {
+      return;
+    }
+    // Same user already fetching.
+    if (_listingsInFlight && _loadedForUserId == profile.id) return;
+
+    _listingsInFlight = true;
+    _loadedForUserId = profile.id;
+    if (mounted) setState(() => _loadingListings = true);
+
+    try {
+      final Result<List<ActiveListing>> result =
+          await InjectionContainer.instance.fetchMyActiveListings(
+        currentUserId: profile.id,
+        currentUserName: profile.fullName,
+      );
+      if (!mounted) return;
+      result.when(
+        ok: (List<ActiveListing> items) {
+          setState(() {
+            _listings = items;
+            _loadingListings = false;
+          });
+        },
+        err: (_) {
+          setState(() {
+            _listings = <ActiveListing>[];
+            _loadingListings = false;
+          });
+        },
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _listings = <ActiveListing>[];
+        _loadingListings = false;
+      });
+    } finally {
+      _listingsInFlight = false;
+    }
+  }
+
+  List<ProfileStat> _statsFor(int listingCount) {
+    return <ProfileStat>[
+      ProfileStat(
+        icon: Icons.home_outlined,
+        value: '$listingCount',
+        label: 'Active Listings',
+      ),
+      ...ProfileMockData.stats,
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final double gap = ScreenUtils.h(16);
@@ -97,6 +167,9 @@ class ProfileScreen extends StatelessWidget {
             message: state.message,
           );
         }
+        if (state is ProfileLoaded) {
+          _loadListings(state.profile);
+        }
       },
       builder: (BuildContext context, ProfileState state) {
         final AgentProfile? profile =
@@ -107,6 +180,14 @@ class ProfileScreen extends StatelessWidget {
         final List<ProfileContactItem> contacts = profile != null
             ? _contactsFrom(profile)
             : const <ProfileContactItem>[];
+
+        if (profile != null &&
+            _loadedForUserId != profile.id &&
+            !_listingsInFlight) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _loadListings(profile);
+          });
+        }
 
         return SafeArea(
           child: Scaffold(
@@ -135,8 +216,9 @@ class ProfileScreen extends StatelessWidget {
                         }
                       },
                       onMore: () => context.push(AppRoutes.more),
-                      onMessage: () {},
-                      onCall: () => _onCall(context, profile?.phone),
+                      onCall: profile?.phone.trim().isNotEmpty == true
+                          ? () => _onCall(context, profile?.phone)
+                          : null,
                     ),
                     Padding(
                       padding: EdgeInsets.fromLTRB(
@@ -147,7 +229,9 @@ class ProfileScreen extends StatelessWidget {
                       ),
                       child: Column(
                         children: <Widget>[
-                          const ProfileStatsRow(stats: ProfileMockData.stats),
+                          ProfileStatsRow(
+                            stats: _statsFor(_listings.length),
+                          ),
                           SizedBox(height: gap),
                           if ((profile?.bio ?? '').trim().isNotEmpty) ...<Widget>[
                             ProfileAboutCard(about: profile!.bio.trim()),
@@ -161,10 +245,14 @@ class ProfileScreen extends StatelessWidget {
                             ProfileContactCard(contacts: contacts),
                             SizedBox(height: gap),
                           ],
-                          ProfileListingsSection(
-                            listings: ProfileMockData.listings,
-                            onViewAll: () {},
-                          ),
+                          if (profile != null && _loadingListings)
+                            const ProfileListingsSkeleton()
+                          else if (_listings.isNotEmpty)
+                            ProfileListingsSection(
+                              listings: _listings
+                                  .map((ActiveListing e) => e.toProfileListing())
+                                  .toList(),
+                            ),
                         ],
                       ),
                     ),

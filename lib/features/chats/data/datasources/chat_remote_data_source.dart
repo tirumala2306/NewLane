@@ -21,6 +21,12 @@ abstract class ChatRemoteDataSource {
     String senderAvatar,
   });
 
+  /// Other participant user ids for push (excludes [currentUserId]).
+  Future<List<String>> otherParticipantIds({
+    required String chatId,
+    required String currentUserId,
+  });
+
   Future<void> markThreadRead({
     required String chatId,
     required String currentUserId,

@@ -37,6 +37,7 @@ class AppRoutes {
   static const String ticketConversation = '/support/tickets/conversation';
   static const String createPost = '/create-post';
   static const String tagOffice = '/create-post/tag-office';
+  static const String tagPeople = '/create-post/tag-people';
   static const String addLocation = '/create-post/add-location';
   static const String chat = '/chat';
   static const String conversation = '/chat/conversation';
@@ -56,6 +57,9 @@ class AppRoutes {
 
   static const String officeDirectory = '/office-directory';
   static const String trainingHub = '/home/training-hub';
+
+  static String trainingCategory(String apiCategory) =>
+      '$trainingHub/category/${Uri.encodeComponent(apiCategory)}';
   static const String contentGenerator = '/content-generator';
   static const String contentGeneratorDetails = '/content-generator/details';
   static const String contentGeneratorGenerating =

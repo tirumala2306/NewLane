@@ -34,22 +34,14 @@ class CompleteProfileScreen extends StatefulWidget {
 }
 
 class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
-  static const List<String> _jobTitles = <String>[
-    'Real Estate Agent',
-    'Broker',
-    'Office Manager',
-    'Assistant',
-    'Other',
-  ];
-
   late final TextEditingController _nameController;
   late final TextEditingController _phoneController;
+  late final TextEditingController _jobTitleController;
   final TextEditingController _bioController = TextEditingController();
   final TextEditingController _instagramController = TextEditingController();
   final TextEditingController _websiteController = TextEditingController();
   final ImagePicker _imagePicker = ImagePicker();
 
-  String? _jobTitle;
   File? _avatarFile;
   String? _avatarUrl;
   List<String> _specialties = <String>[];
@@ -65,12 +57,14 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
     _phoneController = TextEditingController(
       text: storage.readString(AppConstants.accessRequestPhoneKey) ?? '',
     );
+    _jobTitleController = TextEditingController();
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();
+    _jobTitleController.dispose();
     _bioController.dispose();
     _instagramController.dispose();
     _websiteController.dispose();
@@ -108,7 +102,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
       _websiteController.text = profile.website;
     }
     if (profile.jobTitle.trim().isNotEmpty) {
-      _jobTitle = profile.jobTitle;
+      _jobTitleController.text = profile.jobTitle.trim();
     }
     if (profile.specialties.isNotEmpty) {
       _specialties = List<String>.from(profile.specialties);
@@ -136,7 +130,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
       CompleteProfileSubmitted(
         fullName: _nameController.text,
         phone: _phoneController.text,
-        jobTitle: _jobTitle ?? '',
+        jobTitle: _jobTitleController.text,
         bio: _bioController.text,
         instagram: _instagramController.text,
         website: _websiteController.text,
@@ -198,10 +192,6 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
       },
       builder: (BuildContext context, CompleteProfileState state) {
         final bool isLoading = state is CompleteProfileLoading;
-        final List<String> jobOptions =
-            _jobTitle != null && !_jobTitles.contains(_jobTitle)
-            ? <String>[_jobTitle!, ..._jobTitles]
-            : _jobTitles;
 
         return AuthScaffold(
           onBack: () => _onBack(context),
@@ -253,12 +243,14 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                 ),
               ),
               SizedBox(height: ScreenUtils.h(20)),
-              AuthSelectField(
+              AuthLabeledField(
                 label: 'Job Title',
-                hint: 'Select job title',
-                value: _jobTitle,
-                options: jobOptions,
-                onSelected: (String value) => setState(() => _jobTitle = value),
+                child: AuthInput(
+                  controller: _jobTitleController,
+                  hintText: 'Assigned by your office',
+                  readOnly: true,
+                  textInputAction: TextInputAction.next,
+                ),
               ),
               SizedBox(height: ScreenUtils.h(20)),
               AuthSpecialtiesField(

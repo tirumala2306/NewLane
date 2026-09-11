@@ -237,6 +237,18 @@ class MockChatRemoteDataSource implements ChatRemoteDataSource {
   }
 
   @override
+  Future<List<String>> otherParticipantIds({
+    required String chatId,
+    required String currentUserId,
+  }) async {
+    final int index = _threads.indexWhere((ChatThread t) => t.id == chatId);
+    if (index < 0) return <String>[];
+    final String peer = _threads[index].peerUserId;
+    if (peer.isEmpty || peer == currentUserId) return <String>[];
+    return <String>[peer];
+  }
+
+  @override
   Future<void> markThreadRead({
     required String chatId,
     required String currentUserId,

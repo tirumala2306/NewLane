@@ -1,11 +1,11 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:newlane/core/config/app_environment.dart';
 import 'package:newlane/core/di/injection_container.dart';
 import 'package:newlane/core/router/app_routes.dart';
 import 'package:newlane/core/theme/app_colors.dart';
+import 'package:newlane/core/utils/app_version.dart';
 import 'package:newlane/core/utils/screen_utils.dart';
 import 'package:newlane/features/auth/domain/entities/agent_profile.dart';
 import 'package:newlane/features/more/data/mock/more_mock_data.dart';
@@ -26,37 +26,21 @@ class MoreScreen extends StatefulWidget {
 }
 
 class _MoreScreenState extends State<MoreScreen> {
-  late final ProfileBloc _profileBloc;
-  StreamSubscription<ProfileState>? _subscription;
-  AgentProfile? _profile;
-  bool _loadingProfile = true;
+  String? _versionLabel;
 
   @override
   void initState() {
     super.initState();
-    _profileBloc = InjectionContainer.instance.createProfileBloc();
-    _applyState(_profileBloc.state);
-    _subscription = _profileBloc.stream.listen(_applyState);
-    _profileBloc.add(const ProfileLoadRequested());
-  }
-
-  @override
-  void dispose() {
-    unawaited(_subscription?.cancel());
-    super.dispose();
-  }
-
-  void _applyState(ProfileState state) {
-    if (!mounted) return;
-    setState(() {
-      if (state is ProfileLoaded) {
-        _profile = state.profile;
-        _loadingProfile = false;
-      } else if (state is ProfileLoading) {
-        _loadingProfile = _profile == null;
-      } else if (state is ProfileFailure) {
-        _loadingProfile = false;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final ProfileBloc bloc = context.read<ProfileBloc>();
+      if (bloc.state is! ProfileLoaded && bloc.state is! ProfileLoading) {
+        bloc.add(const ProfileLoadRequested());
       }
+    });
+    AppVersion.shortLabel().then((String label) {
+      if (!mounted) return;
+      setState(() => _versionLabel = label);
     });
   }
 
@@ -97,7 +81,7 @@ class _MoreScreenState extends State<MoreScreen> {
       case MoreMenuId.profile:
         _openEditProfile();
       case MoreMenuId.office:
-        context.push(AppRoutes.moreOffice);
+        context.push(AppRoutes.officeDirectory);
       case MoreMenuId.notifications:
         context.push(AppRoutes.moreNotifications);
       case MoreMenuId.account:
@@ -121,62 +105,84 @@ class _MoreScreenState extends State<MoreScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final String officeName = (_profile?.officeName.trim().isNotEmpty ?? false)
-        ? _profile!.officeName.trim().toUpperCase()
-        : MoreMockData.officeName.toUpperCase();
+    return BlocBuilder<ProfileBloc, ProfileState>(
+      buildWhen: (ProfileState prev, ProfileState next) => prev != next,
+      builder: (BuildContext context, ProfileState state) {
+        final AgentProfile? profile =
+            state is ProfileLoaded ? state.profile : null;
+        final bool loadingProfile =
+            state is ProfileLoading || state is ProfileInitial;
 
-    final List<MoreMenuItem> items = MoreMockData.items.map((MoreMenuItem item) {
-      if (item.id != MoreMenuId.office) return item;
-      return MoreMenuItem(
-        id: item.id,
-        title: item.title,
-        icon: item.icon,
-        subtitle: (_profile?.officeName.trim().isNotEmpty ?? false)
-            ? _profile!.officeName.trim()
-            : MoreMockData.officeName,
-      );
-    }).toList();
+        final String officeName =
+            (profile?.officeName.trim().isNotEmpty ?? false)
+                ? profile!.officeName.trim().toUpperCase()
+                : MoreMockData.officeName.toUpperCase();
 
-    return Scaffold(
-      backgroundColor: AppColors.black,
-      appBar: NewLaneAppBar(
-        prefixIcon: Icons.arrow_back_ios_new,
-        prefixIconColor: AppColors.white,
-        onPrefixPressed: () => context.pop(),
-        title: 'MORE',
-        titleFontSize: 16,
-        description: officeName,
-        descriptionFontSize: 10,
-        height: ScreenUtils.h(56),
-      ),
-      body: ListView(
-        padding: EdgeInsets.fromLTRB(
-          ScreenUtils.w(16),
-          ScreenUtils.h(12),
-          ScreenUtils.w(16),
-          ScreenUtils.h(32),
-        ),
-        children: <Widget>[
-          MoreProfileHeader(
-            name: _profile?.fullName ?? '',
-            avatarUrl: _profile != null
-                ? _resolveAvatarUrl(_profile!.avatar)
-                : null,
-            isLoading: _loadingProfile,
-            onViewProfile: () => context.go(AppRoutes.profile),
+        final List<MoreMenuItem> items =
+            MoreMockData.items.map((MoreMenuItem item) {
+          if (item.id == MoreMenuId.office) {
+            return MoreMenuItem(
+              id: item.id,
+              title: item.title,
+              icon: item.icon,
+              subtitle: (profile?.officeName.trim().isNotEmpty ?? false)
+                  ? profile!.officeName.trim()
+                  : MoreMockData.officeName,
+            );
+          }
+          if (item.id == MoreMenuId.about) {
+            return MoreMenuItem(
+              id: item.id,
+              title: item.title,
+              icon: item.icon,
+              subtitle: item.subtitle,
+              trailingText: _versionLabel,
+            );
+          }
+          return item;
+        }).toList();
+
+        return Scaffold(
+          backgroundColor: AppColors.black,
+          appBar: NewLaneAppBar(
+            prefixIcon: Icons.arrow_back_ios_new,
+            onPrefixPressed: () => context.pop(),
+            title: 'MORE',
+            titleFontSize: 16,
+            description: officeName,
+            descriptionFontSize: 10,
+            height: ScreenUtils.h(56),
           ),
-          SizedBox(height: ScreenUtils.h(12)),
-          ...items.map(
-            (MoreMenuItem item) => Padding(
-              padding: EdgeInsets.only(bottom: ScreenUtils.h(10)),
-              child: MoreMenuTile(
-                item: item,
-                onTap: () => _onItemTap(item),
-              ),
+          body: ListView(
+            padding: EdgeInsets.fromLTRB(
+              ScreenUtils.w(16),
+              ScreenUtils.h(12),
+              ScreenUtils.w(16),
+              ScreenUtils.h(32),
             ),
+            children: <Widget>[
+              MoreProfileHeader(
+                name: profile?.fullName ?? '',
+                avatarUrl: profile != null
+                    ? _resolveAvatarUrl(profile.avatar)
+                    : null,
+                isLoading: loadingProfile && profile == null,
+                onViewProfile: () => context.go(AppRoutes.profile),
+              ),
+              SizedBox(height: ScreenUtils.h(12)),
+              ...items.map(
+                (MoreMenuItem item) => Padding(
+                  padding: EdgeInsets.only(bottom: ScreenUtils.h(10)),
+                  child: MoreMenuTile(
+                    item: item,
+                    onTap: () => _onItemTap(item),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

@@ -9,6 +9,8 @@ import 'package:newlane/core/router/app_routes.dart';
 import 'package:newlane/core/theme/app_colors.dart';
 import 'package:newlane/core/theme/app_typography.dart';
 import 'package:newlane/core/utils/screen_utils.dart';
+import 'package:newlane/features/feed/domain/entities/feed_post.dart';
+import 'package:newlane/features/home/data/announcement_mapper.dart';
 import 'package:newlane/features/home/data/mock/home_mock_data.dart';
 import 'package:newlane/features/home/widgets/announcement_list.dart';
 import 'package:newlane/features/home/widgets/home_card.dart';
@@ -17,8 +19,8 @@ import 'package:newlane/features/home/widgets/my_requests_summary.dart';
 import 'package:newlane/features/home/widgets/office_card.dart';
 import 'package:newlane/features/home/widgets/quick_actions_grid.dart';
 import 'package:newlane/features/home/widgets/social_feed_card.dart';
-import 'package:newlane/features/feed/domain/entities/feed_post.dart';
 import 'package:newlane/features/marketing_request/domain/usecases/get_marketing_request_counts.dart';
+import 'package:newlane/features/notifications/domain/entities/app_notification.dart';
 import 'package:newlane/features/profile/bloc/profile_bloc.dart';
 import 'package:newlane/features/profile/bloc/profile_state.dart';
 import 'package:newlane/shared/widgets/app_svg.dart';
@@ -31,7 +33,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   static const Map<String, int> _quickActionBranches = <String, int>{
     'Chat': 1,
   };
@@ -40,15 +42,92 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _loadingCounts = true;
   FeedPost? _feedPreview;
   bool _loadingFeed = true;
+  List<HomeAnnouncement> _announcements = <HomeAnnouncement>[];
+  bool _loadingAnnouncements = true;
+
+  /// Tracks shell tab so we can refresh when Home becomes visible again
+  /// (IndexedStack keeps this screen mounted, so [initState] only runs once).
+  int? _lastShellIndex;
+  bool _quietRefreshScheduled = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadRequestCounts();
     _loadFeedPreview();
+    _loadAnnouncements();
   }
 
-  Future<void> _loadRequestCounts() async {
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _scheduleQuietRefreshIfHomeVisible();
+    }
+  }
+
+  void _scheduleQuietRefreshIfHomeVisible() {
+    final int index =
+        StatefulNavigationShell.maybeOf(context)?.currentIndex ?? 0;
+    if (index != 0 || _quietRefreshScheduled) return;
+    _quietRefreshScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      _quietRefreshScheduled = false;
+      if (!mounted) return;
+      final int stillHome =
+          StatefulNavigationShell.maybeOf(context)?.currentIndex ?? 0;
+      if (stillHome != 0) return;
+      await _onRefresh();
+    });
+  }
+
+  void _onShellIndexChanged(int index) {
+    final int? previous = _lastShellIndex;
+    _lastShellIndex = index;
+    // Returning to Home from another tab — refresh My Requests counts etc.
+    if (previous != null && previous != 0 && index == 0) {
+      _scheduleQuietRefreshIfHomeVisible();
+    }
+  }
+
+  Future<void> _loadAnnouncements({bool showLoader = true}) async {
+    if (showLoader && mounted) {
+      setState(() => _loadingAnnouncements = true);
+    }
+    final Result<List<AppNotification>> result =
+        await InjectionContainer.instance.fetchMyNotifications();
+    if (!mounted) return;
+    result.when(
+      ok: (List<AppNotification> items) {
+        final List<HomeAnnouncement> home = items
+            .where((AppNotification n) => n.showOnHomeAnnouncements)
+            .take(5)
+            .map(homeAnnouncementFromNotification)
+            .toList();
+        setState(() {
+          _announcements = home;
+          _loadingAnnouncements = false;
+        });
+      },
+      err: (_) {
+        setState(() {
+          if (showLoader) _announcements = <HomeAnnouncement>[];
+          _loadingAnnouncements = false;
+        });
+      },
+    );
+  }
+
+  Future<void> _loadRequestCounts({bool showLoader = true}) async {
+    if (showLoader && mounted) {
+      setState(() => _loadingCounts = true);
+    }
     final Result<MarketingRequestCounts> result =
         await InjectionContainer.instance.fetchMarketingRequestCounts();
     if (!mounted) return;
@@ -65,7 +144,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Future<void> _loadFeedPreview() async {
+  Future<void> _loadFeedPreview({bool showLoader = true}) async {
+    if (showLoader && mounted) {
+      setState(() => _loadingFeed = true);
+    }
     final Result<List<FeedPost>> result =
         await InjectionContainer.instance.fetchFeed();
     if (!mounted) return;
@@ -80,6 +162,15 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() => _loadingFeed = false);
       },
     );
+  }
+
+  /// Pull-to-refresh: keep current content visible; refresh in parallel.
+  Future<void> _onRefresh() async {
+    await Future.wait<void>(<Future<void>>[
+      _loadAnnouncements(showLoader: false),
+      _loadRequestCounts(showLoader: false),
+      _loadFeedPreview(showLoader: false),
+    ]);
   }
 
   Future<void> _openMyRequests() async {
@@ -142,6 +233,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    _onShellIndexChanged(
+      StatefulNavigationShell.maybeOf(context)?.currentIndex ?? 0,
+    );
     final double gap = ScreenUtils.h(16);
     final ProfileState profileState = context.watch<ProfileBloc>().state;
     final String officeName = switch (profileState) {
@@ -155,35 +249,41 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: _appBar(context),
       body: SafeArea(
         top: false,
-        child: ListView(
-          padding: EdgeInsets.fromLTRB(
-            ScreenUtils.w(16),
-            gap,
-            ScreenUtils.w(16),
-            ScreenUtils.h(32),
+        child: RefreshIndicator(
+          color: AppColors.primaryButtonBg,
+          backgroundColor: AppColors.cardSurface,
+          onRefresh: _onRefresh,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: EdgeInsets.fromLTRB(
+              ScreenUtils.w(16),
+              gap,
+              ScreenUtils.w(16),
+              ScreenUtils.h(32),
+            ),
+            children: <Widget>[
+              _greeting(),
+              SizedBox(height: gap),
+              OfficeCard(
+                officeName: officeName,
+                onViewOffice: () => context.push(AppRoutes.officeDirectory),
+              ),
+              SizedBox(height: gap),
+              _announcementsCard(),
+              SizedBox(height: gap),
+              const HomeSectionHeader(title: 'QUICK ACTIONS'),
+              SizedBox(height: gap),
+              QuickActionsGrid(
+                actions: HomeMockData.quickActions,
+                onActionTap: (HomeQuickAction action) =>
+                    _onQuickActionTap(context, action),
+              ),
+              SizedBox(height: gap),
+              _requestsCard(context),
+              SizedBox(height: gap),
+              _feedCard(),
+            ],
           ),
-          children: <Widget>[
-            _greeting(),
-            SizedBox(height: gap),
-            OfficeCard(
-              officeName: officeName,
-              onViewOffice: () => context.push(AppRoutes.moreOffice),
-            ),
-            SizedBox(height: gap),
-            _announcementsCard(),
-            SizedBox(height: gap),
-            const HomeSectionHeader(title: 'QUICK ACTIONS'),
-            SizedBox(height: gap),
-            QuickActionsGrid(
-              actions: HomeMockData.quickActions,
-              onActionTap: (HomeQuickAction action) =>
-                  _onQuickActionTap(context, action),
-            ),
-            SizedBox(height: gap),
-            _requestsCard(context),
-            SizedBox(height: gap),
-            _feedCard(),
-          ],
         ),
       ),
     );
@@ -193,7 +293,11 @@ class _HomeScreenState extends State<HomeScreen> {
     return NewLaneAppBar(
       prefix: IconButton(
         onPressed: () => context.push(AppRoutes.more),
-        icon: Icon(Icons.menu, size: ScreenUtils.sp(28)),
+        icon: Icon(
+          Icons.menu,
+          size: ScreenUtils.sp(28),
+          color: AppColors.white,
+        ),
       ),
       description: 'ELEVATE. CONNECT. SUCCEED.',
       descriptionFontSize: 5,
@@ -202,8 +306,12 @@ class _HomeScreenState extends State<HomeScreen> {
         height: ScreenUtils.h(30),
       ),
       suffix: IconButton(
-        onPressed: () {},
-        icon: Icon(CupertinoIcons.bell, size: ScreenUtils.sp(28)),
+        onPressed: () => context.push(AppRoutes.moreNotifications),
+        icon: Icon(
+          CupertinoIcons.bell,
+          size: ScreenUtils.sp(28),
+          color: AppColors.white,
+        ),
       ),
       height: ScreenUtils.h(64),
     );
@@ -251,8 +359,52 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          HomeSectionHeader(title: 'ANNOUNCEMENTS', onViewAll: () {}),
-          const AnnouncementList(items: HomeMockData.announcements),
+          HomeSectionHeader(
+            title: 'ANNOUNCEMENTS',
+            onViewAll: () => context.push(
+              AppRoutes.moreNotifications,
+              extra: true,
+            ),
+          ),
+          if (_loadingAnnouncements)
+            Padding(
+              padding: EdgeInsets.symmetric(vertical: ScreenUtils.h(16)),
+              child: const Center(
+                child: SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppColors.primaryButtonBg,
+                  ),
+                ),
+              ),
+            )
+          else if (_announcements.isEmpty)
+            Padding(
+              padding: EdgeInsets.only(
+                top: ScreenUtils.h(8),
+                bottom: ScreenUtils.h(16),
+              ),
+              child: Text(
+                'No announcements yet — office broadcasts, training uploads, and new agents appear here.',
+                style: AppTypography.regular(
+                  fontSize: 12,
+                  color: AppColors.white.withValues(alpha: 0.55),
+                ),
+              ),
+            )
+          else
+            AnnouncementList(
+              items: _announcements,
+              onItemTap: (HomeAnnouncement item) {
+                if (item.kind == AppNotificationKind.training.name) {
+                  context.push(AppRoutes.trainingHub);
+                } else {
+                  context.push(AppRoutes.moreNotifications, extra: true);
+                }
+              },
+            ),
         ],
       ),
     );

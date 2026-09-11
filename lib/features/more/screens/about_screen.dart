@@ -4,8 +4,8 @@ import 'package:newlane/core/constants/asset_constants.dart';
 import 'package:newlane/core/constants/legal_urls.dart';
 import 'package:newlane/core/theme/app_colors.dart';
 import 'package:newlane/core/theme/app_typography.dart';
+import 'package:newlane/core/utils/app_version.dart';
 import 'package:newlane/core/utils/screen_utils.dart';
-import 'package:newlane/features/more/data/mock/more_mock_data.dart';
 import 'package:newlane/features/more/widgets/more_card.dart';
 import 'package:newlane/features/more/widgets/more_settings_widgets.dart';
 import 'package:newlane/shared/widgets/app_svg.dart';
@@ -48,12 +48,18 @@ class AboutScreen extends StatelessWidget {
                   height: ScreenUtils.h(36),
                 ),
                 SizedBox(height: ScreenUtils.h(12)),
-                Text(
-                  MoreMockData.aboutVersion,
-                  style: AppTypography.regular(
-                    fontSize: 11,
-                    color: AppColors.white.withValues(alpha: 0.55),
-                  ),
+                FutureBuilder<String>(
+                  future: AppVersion.fullLabel(),
+                  builder: (BuildContext context, AsyncSnapshot<String> snap) {
+                    final String label = snap.data ?? 'Version …';
+                    return Text(
+                      label,
+                      style: AppTypography.regular(
+                        fontSize: 11,
+                        color: AppColors.white.withValues(alpha: 0.55),
+                      ),
+                    );
+                  },
                 ),
                 SizedBox(height: ScreenUtils.h(14)),
                 Text(
@@ -116,7 +122,7 @@ class AboutScreen extends StatelessWidget {
           MoreCard(
             child: Center(
               child: Text(
-                '© 2024 NewLane. All rights reserved.',
+                '© ${DateTime.now().year} NewLane. All rights reserved.',
                 style: AppTypography.regular(
                   fontSize: 11,
                   color: AppColors.white.withValues(alpha: 0.55),

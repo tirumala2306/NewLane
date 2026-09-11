@@ -21,6 +21,19 @@ enum ContentFormat {
 }
 
 class ContentGraphicFields {
+
+  factory ContentGraphicFields.fromJson(Map<String, dynamic> json) {
+    return ContentGraphicFields(
+      brandLogo: (json['brandLogo'] ?? 'NEWLANE').toString(),
+      headline: (json['headline'] ?? 'JUST LISTED').toString(),
+      address: (json['address'] ?? '').toString(),
+      price: (json['price'] ?? '').toString(),
+      bedrooms: _asNum(json['bedrooms']),
+      bathrooms: _asNum(json['bathrooms']),
+      sqft: _asInt(json['sqft']),
+      tagline: (json['tagline'] ?? 'Luxury Waterfront Living').toString(),
+    );
+  }
   const ContentGraphicFields({
     this.brandLogo = 'NEWLANE',
     this.headline = 'JUST LISTED',
@@ -41,16 +54,25 @@ class ContentGraphicFields {
   final int sqft;
   final String tagline;
 
-  factory ContentGraphicFields.fromJson(Map<String, dynamic> json) {
+  ContentGraphicFields copyWith({
+    String? brandLogo,
+    String? headline,
+    String? address,
+    String? price,
+    num? bedrooms,
+    num? bathrooms,
+    int? sqft,
+    String? tagline,
+  }) {
     return ContentGraphicFields(
-      brandLogo: (json['brandLogo'] ?? 'NEWLANE').toString(),
-      headline: (json['headline'] ?? 'JUST LISTED').toString(),
-      address: (json['address'] ?? '').toString(),
-      price: (json['price'] ?? '').toString(),
-      bedrooms: _asNum(json['bedrooms']),
-      bathrooms: _asNum(json['bathrooms']),
-      sqft: _asInt(json['sqft']),
-      tagline: (json['tagline'] ?? 'Luxury Waterfront Living').toString(),
+      brandLogo: brandLogo ?? this.brandLogo,
+      headline: headline ?? this.headline,
+      address: address ?? this.address,
+      price: price ?? this.price,
+      bedrooms: bedrooms ?? this.bedrooms,
+      bathrooms: bathrooms ?? this.bathrooms,
+      sqft: sqft ?? this.sqft,
+      tagline: tagline ?? this.tagline,
     );
   }
 
@@ -67,17 +89,6 @@ class ContentGraphicFields {
 }
 
 class ContentGraphicSpec {
-  const ContentGraphicSpec({
-    required this.template,
-    required this.format,
-    required this.fields,
-    this.category = 'Real Estate Listing',
-  });
-
-  final String template;
-  final ContentFormat format;
-  final ContentGraphicFields fields;
-  final String category;
 
   factory ContentGraphicSpec.fromJson(Map<String, dynamic> json) {
     final Object? fieldsRaw = json['fields'];
@@ -90,6 +101,17 @@ class ContentGraphicSpec {
           : const ContentGraphicFields(),
     );
   }
+  const ContentGraphicSpec({
+    required this.template,
+    required this.format,
+    required this.fields,
+    this.category = 'Real Estate Listing',
+  });
+
+  final String template;
+  final ContentFormat format;
+  final ContentGraphicFields fields;
+  final String category;
 
   ContentGraphicSpec copyWith({
     String? template,
@@ -107,15 +129,6 @@ class ContentGraphicSpec {
 }
 
 class ContentTemplate {
-  const ContentTemplate({
-    required this.id,
-    required this.name,
-    this.category = 'Real Estate Listing',
-  });
-
-  final String id;
-  final String name;
-  final String category;
 
   factory ContentTemplate.fromJson(Map<String, dynamic> json) {
     return ContentTemplate(
@@ -125,6 +138,15 @@ class ContentTemplate {
           .toString(),
     );
   }
+  const ContentTemplate({
+    required this.id,
+    required this.name,
+    this.category = 'Real Estate Listing',
+  });
+
+  final String id;
+  final String name;
+  final String category;
 }
 
 class ContentGenerateResult {

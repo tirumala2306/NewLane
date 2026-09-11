@@ -25,6 +25,10 @@ abstract class FeedRemoteDataSource {
     required String postType,
     required String visibility,
     List<String> mediaPaths = const <String>[],
+    String locationLabel = '',
+    String price = '',
+    List<int> taggedUserIds = const <int>[],
+    int? officeId,
   });
 }
 
@@ -135,6 +139,10 @@ class FeedRemoteDataSourceImpl implements FeedRemoteDataSource {
     required String postType,
     required String visibility,
     List<String> mediaPaths = const <String>[],
+    String locationLabel = '',
+    String price = '',
+    List<int> taggedUserIds = const <int>[],
+    int? officeId,
   }) async {
     AppLog.line('[DATA SOURCE] POST ${ApiEndpoints.feed}');
     final FormData formData = FormData();
@@ -143,6 +151,35 @@ class FeedRemoteDataSourceImpl implements FeedRemoteDataSource {
       MapEntry<String, String>('postType', postType),
       MapEntry<String, String>('visibility', visibility),
     ]);
+    if (locationLabel.trim().isNotEmpty) {
+      formData.fields.add(
+        MapEntry<String, String>('location', locationLabel.trim()),
+      );
+      formData.fields.add(
+        MapEntry<String, String>('address', locationLabel.trim()),
+      );
+    }
+    if (price.trim().isNotEmpty) {
+      formData.fields.add(MapEntry<String, String>('price', price.trim()));
+    }
+    if (officeId != null && officeId > 0) {
+      formData.fields.add(
+        MapEntry<String, String>('officeId', '$officeId'),
+      );
+    }
+    if (taggedUserIds.isNotEmpty) {
+      formData.fields.add(
+        MapEntry<String, String>(
+          'taggedUserIds',
+          taggedUserIds.join(','),
+        ),
+      );
+      for (final int id in taggedUserIds) {
+        formData.fields.add(
+          MapEntry<String, String>('taggedUserIds[]', '$id'),
+        );
+      }
+    }
 
     for (final String path in mediaPaths) {
       final String trimmed = path.trim();
@@ -179,6 +216,7 @@ class FeedRemoteDataSourceImpl implements FeedRemoteDataSource {
       authorName: 'You',
       postType: postType,
       visibility: visibility,
+      locationLabel: locationLabel,
     );
   }
 

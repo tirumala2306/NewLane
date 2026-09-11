@@ -89,9 +89,9 @@ class FirestoreChatRemoteDataSource implements ChatRemoteDataSource {
               isOnline: false,
               peerUserId: peerUserId,
             );
-          }).toList();
+          }).toList()
 
-          threads.sort(
+          ..sort(
             (ChatThread a, ChatThread b) =>
                 b.lastMessageAt.compareTo(a.lastMessageAt),
           );
@@ -184,6 +184,31 @@ class FirestoreChatRemoteDataSource implements ChatRemoteDataSource {
 
     batch.update(chatRef, unreadUpdates);
     await batch.commit();
+  }
+
+  @override
+  Future<List<String>> otherParticipantIds({
+    required String chatId,
+    required String currentUserId,
+  }) async {
+    final DocumentSnapshot<Map<String, dynamic>> chatSnap =
+        await _chats.doc(chatId).get();
+    final Map<String, dynamic> chatData =
+        chatSnap.data() ?? <String, dynamic>{};
+    final List<dynamic> participants =
+        (chatData['participantIds'] as List<dynamic>?) ?? <dynamic>[];
+    final Set<String> ids = participants
+        .map((dynamic id) => id.toString())
+        .where((String id) => id.isNotEmpty && id != currentUserId)
+        .toSet();
+
+    final String peer =
+        (chatData['peerUserId'] as String?)?.trim() ?? '';
+    if (peer.isNotEmpty && peer != currentUserId) {
+      ids.add(peer);
+    }
+
+    return ids.toList();
   }
 
   @override

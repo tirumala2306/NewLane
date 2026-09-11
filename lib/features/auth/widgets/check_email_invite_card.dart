@@ -11,13 +11,19 @@ import 'package:newlane/shared/widgets/unified_button.dart';
 class CheckEmailInviteCard extends StatelessWidget {
   const CheckEmailInviteCard({
     required this.fullName,
-    required this.brokerageName,
+    required this.workspaceName,
+    this.locationLabel = '',
     this.workEmail = '',
     super.key,
   });
 
   final String fullName;
-  final String brokerageName;
+
+  /// Assigned office / brokerage name (shown under Workspace).
+  final String workspaceName;
+
+  /// Office city/address for the location row.
+  final String locationLabel;
   final String workEmail;
 
   Future<void> _openMail(BuildContext context) async {
@@ -64,7 +70,8 @@ class CheckEmailInviteCard extends StatelessWidget {
           SizedBox(height: ScreenUtils.h(24)),
           InviteBody(
             fullName: fullName,
-            brokerageName: brokerageName,
+            workspaceName: workspaceName,
+            locationLabel: locationLabel,
             workEmail: workEmail,
           ),
           SizedBox(height: ScreenUtils.h(24)),
@@ -82,13 +89,15 @@ class CheckEmailInviteCard extends StatelessWidget {
 class InviteBody extends StatelessWidget {
   const InviteBody({
     required this.fullName,
-    required this.brokerageName,
+    required this.workspaceName,
+    this.locationLabel = '',
     this.workEmail = '',
     super.key,
   });
 
   final String fullName;
-  final String brokerageName;
+  final String workspaceName;
+  final String locationLabel;
   final String workEmail;
 
   @override
@@ -97,6 +106,9 @@ class InviteBody extends StatelessWidget {
       fontSize: 14,
       color: AppColors.white.withValues(alpha: 0.5),
     );
+    final String workspace =
+        workspaceName.trim().isEmpty ? 'NEWLANE' : workspaceName.trim();
+    final String location = locationLabel.trim();
 
     return Container(
       width: double.infinity,
@@ -112,26 +124,27 @@ class InviteBody extends StatelessWidget {
           Text('Hi $fullName,', style: muted),
           Text('Your access has been approved.', style: muted),
           Text('Workspace', style: muted),
-          Text('NEWLANE', style: AppTypography.medium(fontSize: 26)),
-          Row(
-            children: <Widget>[
-              Icon(
-                Icons.location_on_sharp,
-                size: ScreenUtils.sp(20),
-                color: AppColors.white.withValues(alpha: 0.5),
-              ),
-              SizedBox(width: ScreenUtils.w(6)),
-              Expanded(
-                child: Text(
-                  brokerageName,
-                  style: AppTypography.medium(
-                    fontSize: 12,
-                    color: AppColors.white.withValues(alpha: 0.5),
+          Text(workspace, style: AppTypography.medium(fontSize: 26)),
+          if (location.isNotEmpty)
+            Row(
+              children: <Widget>[
+                Icon(
+                  Icons.location_on_sharp,
+                  size: ScreenUtils.sp(20),
+                  color: AppColors.white.withValues(alpha: 0.5),
+                ),
+                SizedBox(width: ScreenUtils.w(6)),
+                Expanded(
+                  child: Text(
+                    location,
+                    style: AppTypography.medium(
+                      fontSize: 12,
+                      color: AppColors.white.withValues(alpha: 0.5),
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
           if (workEmail.isNotEmpty)
             Text(
               workEmail,

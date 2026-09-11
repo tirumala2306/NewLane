@@ -15,18 +15,29 @@ class CustomBottomNavBar extends StatelessWidget {
     required this.onItemSelected,
     super.key,
     this.onCenterTap,
+    this.chatUnreadCount = 0,
   });
 
   final int currentIndex;
   final ValueChanged<int> onItemSelected;
   final VoidCallback? onCenterTap;
 
+  /// Total unread chat messages across threads (shown on Chat tab).
+  final int chatUnreadCount;
+
   static const Color _inactive = AppColors.white;
+
+  String get _chatBadgeLabel {
+    if (chatUnreadCount <= 0) return '';
+    if (chatUnreadCount > 9) return '9+';
+    return '$chatUnreadCount';
+  }
 
   @override
   Widget build(BuildContext context) {
     final double barHeight = ScreenUtils.h(64);
     final double centerSize = ScreenUtils.w(47);
+    final String badge = _chatBadgeLabel;
 
     return Material(
       color: AppColors.black,
@@ -58,12 +69,25 @@ class CustomBottomNavBar extends StatelessWidget {
                     label: 'Chat',
                     isSelected: currentIndex == 1,
                     onTap: () => onItemSelected(1),
-                    icon: Icon(
-                      currentIndex == 1 ? CupertinoIcons.chat_bubble_text_fill : CupertinoIcons.chat_bubble_text,
-                      size: ScreenUtils.sp(24),
-                      color: currentIndex == 1
-                          ? AppColors.primaryButtonBg
-                          : _inactive,
+                    icon: Stack(
+                      clipBehavior: Clip.none,
+                      children: <Widget>[
+                        Icon(
+                          currentIndex == 1
+                              ? CupertinoIcons.chat_bubble_text_fill
+                              : CupertinoIcons.chat_bubble_text,
+                          size: ScreenUtils.sp(24),
+                          color: currentIndex == 1
+                              ? AppColors.primaryButtonBg
+                              : _inactive,
+                        ),
+                        if (badge.isNotEmpty)
+                          Positioned(
+                            right: -ScreenUtils.w(10),
+                            top: -ScreenUtils.h(6),
+                            child: _UnreadBadge(label: badge),
+                          ),
+                      ],
                     ),
                   ),
                 ),
@@ -93,7 +117,9 @@ class CustomBottomNavBar extends StatelessWidget {
                     isSelected: currentIndex == 2,
                     onTap: () => onItemSelected(2),
                     icon: Icon(
-                      currentIndex == 2 ? Icons.description : Icons.description_outlined,
+                      currentIndex == 2
+                          ? Icons.description
+                          : Icons.description_outlined,
                       size: ScreenUtils.sp(24),
                       color: currentIndex == 2
                           ? AppColors.primaryButtonBg
@@ -119,6 +145,36 @@ class CustomBottomNavBar extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _UnreadBadge extends StatelessWidget {
+  const _UnreadBadge({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: BoxConstraints(minWidth: ScreenUtils.w(16)),
+      padding: EdgeInsets.symmetric(
+        horizontal: ScreenUtils.w(4),
+        vertical: ScreenUtils.h(1),
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.primaryButtonBg,
+        borderRadius: BorderRadius.circular(ScreenUtils.r(10)),
+        border: Border.all(color: AppColors.black, width: 1),
+      ),
+      child: Text(
+        label,
+        textAlign: TextAlign.center,
+        style: AppTypography.semiBold(
+          fontSize: 9,
+          color: AppColors.black,
         ),
       ),
     );
